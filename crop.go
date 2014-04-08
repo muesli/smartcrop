@@ -92,27 +92,27 @@ func importance(crop *Crop, x, y int) float64 {
 }
 
 func score(output *image.Image, crop *Crop) Score {
+	o := (*output).(*image.RGBA)
 	height := (*output).Bounds().Size().Y
 	width := (*output).Bounds().Size().X
 	score := Score{}
 
 	for y := 0; y < height*scoreDownSample; y += scoreDownSample {
+		yoffset := int(math.Floor(float64(y)*invDownSample)) * width
 		for x := 0; x < width*scoreDownSample; x += scoreDownSample {
 			//			now := time.Now()
 			imp := importance(crop, x, y)
 			//			fmt.Println("Time elapsed single-imp:", time.Since(now))
 
-			ny := int(float64(y) * invDownSample)
-			nx := int(float64(x) * invDownSample)
+			p := yoffset + int(math.Floor(float64(x)*invDownSample)) * 4
 
-			r, g, b, _ := (*output).At(nx, ny).RGBA()
-			r8 := float64(r >> 8)
-			g8 := float64(g >> 8)
-			b8 := float64(b >> 8)
+			r8 := float64(o.Pix[p]) / 255.0
+			g8 := float64(o.Pix[p+1]) / 255.0
+			b8 := float64(o.Pix[p+2]) / 255.0
 
-			score.Skin += (r8 / 255.0) * (g8/255.0 + skinBias) * imp
-			score.Detail += (g8 / 255.0) * imp
-			score.Saturation += (b8 / 255.0) * (g8/255.0 + saturationBias) * imp
+			score.Skin += r8 * (g8 + skinBias) * imp
+			score.Detail += g8 * imp
+			score.Saturation += b8 * (g8 + saturationBias) * imp
 		}
 	}
 
