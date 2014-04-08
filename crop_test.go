@@ -13,10 +13,6 @@ var (
 	testFile = "./samples/test.png"
 )
 
-/*type SubImager interface {
-	SubImage(r image.Rectangle) image.Image
-}*/
-
 func TestCrop(t *testing.T) {
 	fi, _ := os.Open(testFile)
 	defer fi.Close()
@@ -32,6 +28,6 @@ func TestCrop(t *testing.T) {
 	}
 	fmt.Printf("Top crop: %+v\n", topCrop)
 
-/*	cropImage := img.(SubImager).SubImage(image.Rect(topCrop.X, topCrop.Y, topCrop.Width+topCrop.X, topCrop.Height+topCrop.Y))
-	writeImage(&cropImage, "/tmp/foo_topcrop.jpg")*/
+	cropImage := img.(*image.RGBA).SubImage(image.Rect(topCrop.X, topCrop.Y, topCrop.Width+topCrop.X, topCrop.Height+topCrop.Y))
+	WriteImageToJpeg(&cropImage, "/tmp/smartcrop.jpg")
 }

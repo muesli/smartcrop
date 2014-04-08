@@ -132,7 +132,7 @@ func score(output *image.Image, crop *Crop) Score {
 	return score
 }
 
-func writeImage(img *image.Image, name string) {
+func WriteImageToJpeg(img *image.Image, name string) {
 	fso, err := os.Create(name)
 	if err != nil {
 		panic(err)
@@ -148,17 +148,17 @@ func analyse(img *image.Image) Crop {
 	now := time.Now()
 	edgeDetect(img, &o)
 	fmt.Println("Time elapsed edge:", time.Since(now))
-//	writeImage(&o, "/tmp/foo_step1.jpg")
+//	writeImageToJpeg(&o, "/tmp/smartcrop_step1.jpg")
 
 	now = time.Now()
 	skinDetect(img, &o)
 	fmt.Println("Time elapsed skin:", time.Since(now))
-//	writeImage(&o, "/tmp/foo_step2.jpg")
+//	writeImageToJpeg(&o, "/tmp/smartcrop_step2.jpg")
 
 	now = time.Now()
 	saturationDetect(img, &o)
 	fmt.Println("Time elapsed sat:", time.Since(now))
-//	writeImage(&o, "/tmp/foo_step3.jpg")
+//	writeImageToJpeg(&o, "/tmp/smartcrop_step3.jpg")
 
 	now = time.Now()
 	var topCrop Crop
