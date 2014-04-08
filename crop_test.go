@@ -13,9 +13,9 @@ var (
 	testFile = "./samples/test.png"
 )
 
-type SubImager interface {
+/*type SubImager interface {
 	SubImage(r image.Rectangle) image.Image
-}
+}*/
 
 func TestCrop(t *testing.T) {
 	fi, _ := os.Open(testFile)
