@@ -140,7 +140,6 @@ func writeImage(img *image.Image, name string) {
 	defer fso.Close()
 
 	jpeg.Encode(fso, (*img), &jpeg.Options{Quality: 90})
-	fso.Close()
 }
 
 func analyse(img *image.Image) Crop {
