@@ -21,6 +21,7 @@ To compile it from source:
 package main
 
 import (
+	"github.com/muesli/smartcrop.go"
 	"fmt"
 	"image"
 	_ "image/jpeg"
@@ -37,7 +38,7 @@ func main() {
 		panic(err)
 	}
 
-	topCrop, err := SmartCrop(&img, 250, 250)
+	topCrop, err := smartcrop.SmartCrop(&img, 250, 250)
 	if err != nil {
 		panic(err)
 	}
