@@ -1,7 +1,12 @@
 smartcrop.go
 ============
 
-smartcrop implementation in Go
+smartcrop implementation in Go - based on [smartcrop.js](https://github.com/jwagner/smartcrop.js)
+
+smartcrop finds good crops for images.
+
+![Example](http://29a.ch/sandbox/2014/smartcrop/example.jpg)
+Image: [https://www.flickr.com/photos/endogamia/5682480447/](https://www.flickr.com/photos/endogamia/5682480447) by N. Feans
 
 ## Installation
 
