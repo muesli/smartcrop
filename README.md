@@ -14,19 +14,19 @@ Make sure you have a working Go environment. See the [install instructions](http
 
 To install smartcrop, simply run:
 
-    go get github.com/muesli/smartcrop.go
+    go get github.com/muesli/smartcrop
 
 To compile it from source:
 
-    git clone git://github.com/muesli/smartcrop.go.git
-    cd smartcrop.go && go build && go test -v
+    git clone git://github.com/muesli/smartcrop.git
+    cd smartcrop && go build && go test -v
 
 ## Example
 ```go
 package main
 
 import (
-	"github.com/muesli/smartcrop.go"
+	"github.com/muesli/smartcrop"
 	"fmt"
 	"image"
 	_ "image/jpeg"
@@ -54,6 +54,6 @@ func main() {
 Also see the test-cases in crop_test.go for further working examples.
 
 ## Development
-API docs can be found [here](http://godoc.org/github.com/muesli/smartcrop.go).
+API docs can be found [here](http://godoc.org/github.com/muesli/smartcrop).
 
-Continous integration: [![Build Status](https://secure.travis-ci.org/muesli/smartcrop.go.png)](http://travis-ci.org/muesli/smartcrop.go)
+Continous integration: [![Build Status](https://secure.travis-ci.org/muesli/smartcrop.png)](http://travis-ci.org/muesli/smartcrop)
