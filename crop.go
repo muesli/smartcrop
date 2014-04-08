@@ -1,4 +1,4 @@
-package main
+package smartcrop
 
 import (
 	"errors"
@@ -57,8 +57,20 @@ type Crop struct {
 	Score  Score
 }
 
-type SubImager interface {
-	SubImage(r image.Rectangle) image.Image
+func SmartCrop(img *image.Image, width, height int) (Crop, error) {
+	if width == 0 && height == 0 {
+		return Crop{}, errors.New("Expect either a height or width")
+	}
+
+	scale := math.Min(float64((*img).Bounds().Size().X)/float64(width), float64((*img).Bounds().Size().Y)/float64(height))
+	cropWidth, cropHeight = math.Floor(float64(width)*scale), math.Floor(float64(height)*scale)
+	minScale = math.Min(maxScale, math.Max(1.0/scale, minScale))
+
+	fmt.Printf("original resolution: %dx%d\n", (*img).Bounds().Size().X, (*img).Bounds().Size().Y)
+	fmt.Printf("scale: %f, cropw: %f, croph: %f, minscale: %f\n", scale, cropWidth, cropHeight, minScale)
+
+	topCrop := analyse(img)
+	return topCrop, nil
 }
 
 func thirds(x float64) float64 {
@@ -98,9 +110,10 @@ func score(output *image.Image, crop *Crop) Score {
 
 	for y := 0; y < height; y++ {
 		yoffset := y * width
+		ydownSample := y * scoreDownSample
 		for x := 0; x < width; x++ {
 			//			now := time.Now()
-			imp := importance(crop, x*scoreDownSample, y*scoreDownSample)
+			imp := importance(crop, x*scoreDownSample, ydownSample)
 			//			fmt.Println("Time elapsed single-imp:", time.Since(now))
 
 			p := yoffset + x * 4
@@ -130,23 +143,23 @@ func writeImage(img *image.Image, name string) {
 	fso.Close()
 }
 
-func analyse(img image.Image) Crop {
-	o := image.Image(image.NewRGBA(img.Bounds()))
+func analyse(img *image.Image) Crop {
+	o := image.Image(image.NewRGBA((*img).Bounds()))
 
 	now := time.Now()
-	edgeDetect(&img, &o)
+	edgeDetect(img, &o)
 	fmt.Println("Time elapsed edge:", time.Since(now))
-	writeImage(&o, "/tmp/foo_step1.jpg")
+//	writeImage(&o, "/tmp/foo_step1.jpg")
 
 	now = time.Now()
-	skinDetect(&img, &o)
+	skinDetect(img, &o)
 	fmt.Println("Time elapsed skin:", time.Since(now))
-	writeImage(&o, "/tmp/foo_step2.jpg")
+//	writeImage(&o, "/tmp/foo_step2.jpg")
 
 	now = time.Now()
-	saturationDetect(&img, &o)
+	saturationDetect(img, &o)
 	fmt.Println("Time elapsed sat:", time.Since(now))
-	writeImage(&o, "/tmp/foo_step3.jpg")
+//	writeImage(&o, "/tmp/foo_step3.jpg")
 
 	now = time.Now()
 	var topCrop Crop
@@ -164,32 +177,9 @@ func analyse(img image.Image) Crop {
 			topScore = crop.Score.Total
 		}
 	}
-	fmt.Printf("Top crop: %+v\n", topCrop)
 	fmt.Println("Time elapsed score:", time.Since(now))
 
-	cropImage := img.(SubImager).SubImage(image.Rect(topCrop.X, topCrop.Y, topCrop.Width+topCrop.X, topCrop.Height+topCrop.Y))
-	writeImage(&cropImage, "/tmp/foo_topcrop.jpg")
-
 	return topCrop
-}
-
-func crop(img image.Image, width, height int) error {
-	if width == 0 && height == 0 {
-		return errors.New("Expect either a height or width")
-	}
-
-	scale := math.Min(float64(img.Bounds().Size().X)/float64(width), float64(img.Bounds().Size().Y)/float64(height))
-	cropWidth, cropHeight = math.Floor(float64(width)*scale), math.Floor(float64(height)*scale)
-	minScale = math.Min(maxScale, math.Max(1.0/scale, minScale))
-
-	fmt.Printf("original resolution: %dx%d\n", img.Bounds().Size().X, img.Bounds().Size().Y)
-	fmt.Printf("scale: %f, cropw: %f, croph: %f, minscale: %f\n", scale, cropWidth, cropHeight, minScale)
-
-	now := time.Now()
-	analyse(img)
-	fmt.Println("Time elapsed:", time.Since(now))
-
-	return nil
 }
 
 func saturation(c color.Color) float64 {
@@ -336,17 +326,4 @@ func crops(i *image.Image) []Crop {
 	}
 
 	return res
-}
-
-func main() {
-	fi, _ := os.Open("/tmp/foo.png")
-	defer fi.Close()
-
-	img, _, err := image.Decode(fi)
-	if err != nil {
-		panic(err)
-		return
-	}
-
-	crop(img, 250, 250)
 }
