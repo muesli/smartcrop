@@ -97,25 +97,25 @@ func score(output *image.Image, crop Crop) Score {
 
 	for y := 0; y < height * scoreDownSample; y += scoreDownSample {
 		for x := 0; x < width * scoreDownSample; x += scoreDownSample {
-			p := int(math.Floor(float64(y) * invDownSample)) * width + int(math.Floor(float64(x) * invDownSample)) * 4
+			p := int(math.Floor(float64(y) * invDownSample)) * width + int(math.Floor(float64(x) * invDownSample))
 			imp := importance(crop, x, y)
 
-			ny := int(math.Floor(float64(p / 4) / float64(width)))
+			ny := int(math.Floor(float64(p) / float64(width)))
 			nx := 0
 			if ny > 0 {
-				nx = (p / 4) % ny
+				nx = p % width
 			} else {
-				nx = p / 4
+				nx = p
 			}
 
 			r, g, b, _ := (*output).At(nx, ny).RGBA()
-			r8 := uint8(r>>8)
-			g8 := uint8(g>>8)
-			b8 := uint8(b>>8)
+			r8 := float64(r>>8)
+			g8 := float64(g>>8)
+			b8 := float64(b>>8)
 
-			score.Skin += float64(r8)/255.0 * (float64(g8)/255.0 + skinBias) * imp
-			score.Detail += float64(g8)/255.0 * imp
-			score.Saturation += float64(b8)/255.0 * (float64(g8)/255.0 + saturationBias) * imp
+			score.Skin += (r8/255.0) * (g8/255.0 + skinBias) * imp
+			score.Detail += (g8/255.0) * imp
+			score.Saturation += (b8/255.0) * (g8/255.0 + saturationBias) * imp
 		}
 	}
 
@@ -134,47 +134,8 @@ func writeImage(img *image.Image, name string) {
 	fso.Close()
 }
 
-func cloneImage(src image.Image) (dst image.Image) {
-	switch pic := src.(type) {
-	case *image.Alpha:
-		copy := *pic
-		copy.Pix = make([]uint8, len(pic.Pix))
-		dst = &copy
-	case *image.Alpha16:
-		copy := *pic
-		copy.Pix = make([]uint8, len(pic.Pix))
-		dst = &copy
-	case *image.Gray:
-		copy := *pic
-		copy.Pix = make([]uint8, len(pic.Pix))
-		dst = &copy
-	case *image.Gray16:
-		copy := *pic
-		copy.Pix = make([]uint8, len(pic.Pix))
-		dst = &copy
-	case *image.NRGBA:
-		copy := *pic
-		copy.Pix = make([]uint8, len(pic.Pix))
-		dst = &copy
-	case *image.NRGBA64:
-		copy := *pic
-		copy.Pix = make([]uint8, len(pic.Pix))
-		dst = &copy
-	case *image.RGBA:
-		copy := *pic
-		copy.Pix = make([]uint8, len(pic.Pix))
-		dst = &copy
-	case *image.RGBA64:
-		copy := *pic
-		copy.Pix = make([]uint8, len(pic.Pix))
-		dst = &copy
-	default:
-	}
-	return
-}
-
 func analyse(img image.Image) Crop {
-	o := cloneImage(img)
+	o := image.Image(image.NewRGBA(img.Bounds()))
 
 	edgeDetect(&img, &o)
 	writeImage(&o, "/tmp/foo_step1.jpg")
@@ -195,7 +156,7 @@ func analyse(img image.Image) Crop {
 		}
 	}
 
-	fmt.Printf("Top crop: %v\n", topCrop)
+	fmt.Printf("Top crop: %+v\n", topCrop)
 
 	cropImage := img.(SubImager).SubImage(image.Rect(topCrop.X, topCrop.Y, topCrop.Width+topCrop.X, topCrop.Height+topCrop.Y))
 	writeImage(&cropImage, "/tmp/foo_topcrop.jpg")
@@ -242,25 +203,25 @@ func saturation(c color.Color) float64 {
 
 func cie(c color.Color) float64 {
 	r, g, b, _ := c.RGBA()
-	r8 := uint8(r>>8)
-	g8 := uint8(g>>8)
-	b8 := uint8(b>>8)
+	r8 := float64(r>>8)
+	g8 := float64(g>>8)
+	b8 := float64(b>>8)
 
-	return 0.5126*float64(b8) + 0.7152*float64(g8) + 0.0722*float64(r8)
+	return 0.5126*b8 + 0.7152*g8 + 0.0722*r8
 }
 
 func skinCol(c color.Color) float64 {
 	r, g, b, _ := c.RGBA()
-	r8 := uint8(r>>8)
-	g8 := uint8(g>>8)
-	b8 := uint8(b>>8)
+	r8 := float64(r>>8)
+	g8 := float64(g>>8)
+	b8 := float64(b>>8)
 
-	mag := math.Sqrt(float64(r8*r8) + float64(g8*g8) + float64(b8*b8))
-	rd := float64(r8)/mag - skinColor[0]
-	gd := float64(g8)/mag - skinColor[1]
-	bd := float64(b8)/mag - skinColor[2]
+	mag := math.Sqrt(r8*r8 + g8*g8 + b8*b8)
+	rd := r8/mag - skinColor[0]
+	gd := g8/mag - skinColor[1]
+	bd := b8/mag - skinColor[2]
 
-	d := math.Sqrt(float64(rd*rd) + float64(gd*gd) + float64(bd*bd))
+	d := math.Sqrt(rd*rd + gd*gd + bd*bd)
 	return 1.0 - d
 }
 
@@ -303,12 +264,12 @@ func skinDetect(i *image.Image, o *image.Image) {
 
 			if skin > skinThreshold && lightness >= skinBrightnessMin && lightness <= skinBrightnessMax {
 				r := (skin - skinThreshold) * (255.0/(1.0 - skinThreshold))
-				_, g, b, a := (*i).At(x, y).RGBA()
-				nc := color.RGBA{uint8(r), uint8(g>>8), uint8(b>>8), uint8(a>>8)}
+				_, g, b, _ := (*o).At(x, y).RGBA()
+				nc := color.RGBA{uint8(r), uint8(g>>8), uint8(b>>8), 255}
 				(*o).(*image.RGBA).Set(x, y, nc)
 			} else {
-				_, g, b, a := (*i).At(x, y).RGBA()
-				nc := color.RGBA{0, uint8(g>>8), uint8(b>>8), uint8(a>>8)}
+				_, g, b, _ := (*o).At(x, y).RGBA()
+				nc := color.RGBA{0, uint8(g>>8), uint8(b>>8), 255}
 				(*o).(*image.RGBA).Set(x, y, nc)
 			}
 		}
@@ -326,12 +287,12 @@ func saturationDetect(i *image.Image, o *image.Image) {
 
 			if saturation > saturationThreshold && lightness >= saturationBrightnessMin && lightness <= saturationBrightnessMax {
 				b := (saturation - saturationThreshold) * (255.0/(1.0 - saturationThreshold))
-				r, g, _, a := (*i).At(x, y).RGBA()
-				nc := color.RGBA{uint8(r>>8), uint8(g>>8), uint8(b), uint8(a>>8)}
+				r, g, _, _ := (*o).At(x, y).RGBA()
+				nc := color.RGBA{uint8(r>>8), uint8(g>>8), uint8(b), 255}
 				(*o).(*image.RGBA).Set(x, y, nc)
 			} else {
-				r, g, _, a := (*i).At(x, y).RGBA()
-				nc := color.RGBA{uint8(r>>8), uint8(g>>8), 0, uint8(a>>8)}
+				r, g, _, _ := (*o).At(x, y).RGBA()
+				nc := color.RGBA{uint8(r>>8), uint8(g>>8), 0, 255}
 				(*o).(*image.RGBA).Set(x, y, nc)
 			}
 		}
