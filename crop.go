@@ -97,14 +97,14 @@ func score(output *image.Image, crop *Crop) Score {
 	width := (*output).Bounds().Size().X
 	score := Score{}
 
-	for y := 0; y < height*scoreDownSample; y += scoreDownSample {
-		yoffset := int(math.Floor(float64(y)*invDownSample)) * width
-		for x := 0; x < width*scoreDownSample; x += scoreDownSample {
+	for y := 0; y < height; y += 1 {
+		yoffset := y * width
+		for x := 0; x < width; x += 1 {
 			//			now := time.Now()
-			imp := importance(crop, x, y)
+			imp := importance(crop, x*scoreDownSample, y*scoreDownSample)
 			//			fmt.Println("Time elapsed single-imp:", time.Since(now))
 
-			p := yoffset + int(math.Floor(float64(x)*invDownSample)) * 4
+			p := yoffset + x * 4
 
 			r8 := float64(o.Pix[p]) / 255.0
 			g8 := float64(o.Pix[p+1]) / 255.0
