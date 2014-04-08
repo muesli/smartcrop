@@ -26,7 +26,6 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 	"os"
-	"testing"
 )
 
 func main() {
@@ -40,7 +39,7 @@ func main() {
 
 	topCrop, err := SmartCrop(&img, 250, 250)
 	if err != nil {
-		t.Error(err)
+		panic(err)
 	}
 	fmt.Printf("Top crop: %+v\n", topCrop)
 }

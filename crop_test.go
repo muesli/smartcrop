@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	testFile = "/tmp/foo.png"
+	testFile = "./samples/test.png"
 )
 
 type SubImager interface {
@@ -23,7 +23,7 @@ func TestCrop(t *testing.T) {
 
 	img, _, err := image.Decode(fi)
 	if err != nil {
-		panic(err)
+		t.Error(err)
 	}
 
 	topCrop, err := SmartCrop(&img, 250, 250)
