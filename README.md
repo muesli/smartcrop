@@ -56,4 +56,4 @@ Also see the test-cases in crop_test.go for further working examples.
 ## Development
 API docs can be found [here](http://godoc.org/github.com/muesli/smartcrop).
 
-Continous integration: [![Build Status](https://secure.travis-ci.org/muesli/smartcrop.png)](http://travis-ci.org/muesli/smartcrop)
+Continuous integration: [![Build Status](https://secure.travis-ci.org/muesli/smartcrop.png)](http://travis-ci.org/muesli/smartcrop)
