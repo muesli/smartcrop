@@ -22,7 +22,7 @@ func TestCrop(t *testing.T) {
 		t.Error(err)
 	}
 
-	topCrop, err := SmartCrop(&img, 250, 250)
+	topCrop, scaledImg, err := SmartCrop(&img, 300, 300)
 	if err != nil {
 		t.Error(err)
 	}

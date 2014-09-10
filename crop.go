@@ -10,6 +10,8 @@ import (
 	"math"
 	"os"
 	"time"
+
+	"github.com/nfnt/resize"
 )
 
 var (
@@ -39,6 +41,7 @@ var (
 	outsideImportance = -0.5
 	ruleOfThirds      = true
 	prescale          = true
+	prescalefactor    = 1.0
 	debug             = false
 )
 
@@ -57,20 +60,43 @@ type Crop struct {
 	Score  Score
 }
 
-func SmartCrop(img *image.Image, width, height int) (Crop, error) {
+func SmartCrop(img *image.Image, width, height int) (Crop, image.Image, error) {
 	if width == 0 && height == 0 {
-		return Crop{}, errors.New("Expect either a height or width")
+		return Crop{}, nil, errors.New("Expect either a height or width")
 	}
 
 	scale := math.Min(float64((*img).Bounds().Size().X)/float64(width), float64((*img).Bounds().Size().Y)/float64(height))
-	cropWidth, cropHeight = math.Floor(float64(width)*scale), math.Floor(float64(height)*scale)
+
+	// resize image for faster processing
+	var lowimg image.Image
+
+	if prescale {
+
+		if f := 1 / scale / minScale; f < 1 {
+			prescalefactor = f
+		}
+		fmt.Println(prescalefactor)
+
+		lowimg = resize.Resize(
+			uint(float64((*img).Bounds().Size().X)*prescalefactor),
+			0,
+			*img,
+			resize.NearestNeighbor)
+		WriteImageToJpeg(&lowimg, "/tmp/prescale.jpg")
+
+	} else {
+		lowimg = *img
+	}
+
+	cropWidth, cropHeight = math.Floor(float64(width)*scale*prescalefactor), math.Floor(float64(height)*scale*prescalefactor)
 	minScale = math.Min(maxScale, math.Max(1.0/scale, minScale))
 
 	fmt.Printf("original resolution: %dx%d\n", (*img).Bounds().Size().X, (*img).Bounds().Size().Y)
 	fmt.Printf("scale: %f, cropw: %f, croph: %f, minscale: %f\n", scale, cropWidth, cropHeight, minScale)
 
-	topCrop := analyse(img)
-	return topCrop, nil
+	//topCrop := analyse(img)
+	topCrop := analyse(&lowimg)
+	return topCrop, lowimg, nil
 }
 
 func thirds(x float64) float64 {
