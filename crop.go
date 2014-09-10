@@ -142,7 +142,7 @@ func score(output *image.Image, crop *Crop) Score {
 			imp := importance(crop, x*scoreDownSample, ydownSample)
 			//			fmt.Println("Time elapsed single-imp:", time.Since(now))
 
-			p := yoffset + x * 4
+			p := yoffset + x*4
 
 			r8 := float64(o.Pix[p]) / 255.0
 			g8 := float64(o.Pix[p+1]) / 255.0
@@ -174,17 +174,17 @@ func analyse(img *image.Image) Crop {
 	now := time.Now()
 	edgeDetect(img, &o)
 	fmt.Println("Time elapsed edge:", time.Since(now))
-//	writeImageToJpeg(&o, "/tmp/smartcrop_step1.jpg")
+	//WriteImageToJpeg(&o, "/tmp/smartcrop_edge.jpg")
 
 	now = time.Now()
 	skinDetect(img, &o)
 	fmt.Println("Time elapsed skin:", time.Since(now))
-//	writeImageToJpeg(&o, "/tmp/smartcrop_step2.jpg")
+	//WriteImageToJpeg(&o, "/tmp/smartcrop_skin.jpg")
 
 	now = time.Now()
 	saturationDetect(img, &o)
 	fmt.Println("Time elapsed sat:", time.Since(now))
-//	writeImageToJpeg(&o, "/tmp/smartcrop_step3.jpg")
+	//WriteImageToJpeg(&o, "/tmp/smartcrop_sat.jpg")
 
 	now = time.Now()
 	var topCrop Crop
