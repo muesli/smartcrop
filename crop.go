@@ -107,9 +107,8 @@ func chop(x float64) float64 {
 }
 
 func thirds(x float64) float64 {
-	x1 := int(x - (1.0 / 3.0) + 1.0)
-	res := (float64(x1%2.0) * 0.5) - 0.5
-	return res * 16.0
+	x = (math.Mod(x-(1.0/3.0)+1.0, 2.0)*0.5 - 0.5) * 16.0
+	return math.Max(1.0-x*x, 0.0)
 }
 
 func importance(crop *Crop, x, y int) float64 {
