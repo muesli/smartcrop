@@ -25,7 +25,7 @@ var (
 	skinBrightnessMax       = 1.0
 	skinThreshold           = 0.8
 	skinWeight              = 1.8
-	saturationBrightnessMin = 0.25
+	saturationBrightnessMin = 0.05
 	saturationBrightnessMax = 0.9
 	saturationThreshold     = 0.4
 	saturationBias          = 0.2
