@@ -88,7 +88,7 @@ func SmartCrop(img *image.Image, width, height int) (Crop, image.Image, error) {
 		lowimg = *img
 	}
 
-	cropWidth, cropHeight = math.Floor(float64(width)*scale*prescalefactor), math.Floor(float64(height)*scale*prescalefactor)
+	cropWidth, cropHeight = chop(float64(width)*scale*prescalefactor), chop(float64(height)*scale*prescalefactor)
 	minScale = math.Min(maxScale, math.Max(1.0/scale, minScale))
 
 	fmt.Printf("original resolution: %dx%d\n", (*img).Bounds().Size().X, (*img).Bounds().Size().Y)
@@ -97,6 +97,13 @@ func SmartCrop(img *image.Image, width, height int) (Crop, image.Image, error) {
 	//topCrop := analyse(img)
 	topCrop := analyse(&lowimg)
 	return topCrop, lowimg, nil
+}
+
+func chop(x float64) float64 {
+	if x < 0 {
+		return math.Ceil(x)
+	}
+	return math.Floor(x)
 }
 
 func thirds(x float64) float64 {
