@@ -267,7 +267,8 @@ func edgeDetect(i *image.Image, o *image.Image) {
 			var lightness float64
 
 			if x == 0 || x >= w-1 || y == 0 || y >= h-1 {
-				lightness = cie((*i).At(x, y))
+				//lightness = cie((*i).At(x, y))
+				lightness = 0
 			} else {
 				lightness = cie((*i).At(x, y))*4.0 -
 					cie((*i).At(x, y-1)) -
