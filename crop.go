@@ -218,21 +218,21 @@ func analyse(img *image.Image) Crop {
 	edgeDetect(img, &o)
 	fmt.Println("Time elapsed edge:", time.Since(now))
 	if debug {
-		WriteImageToPng(&o, "/tmp/smartcrop_edge.png")
+		WriteImageToPng(&o, "./smartcrop_edge.png")
 	}
 
 	now = time.Now()
 	skinDetect(img, &o)
 	fmt.Println("Time elapsed skin:", time.Since(now))
 	if debug {
-		WriteImageToPng(&o, "/tmp/smartcrop_skin.png")
+		WriteImageToPng(&o, "./smartcrop_skin.png")
 	}
 
 	now = time.Now()
 	saturationDetect(img, &o)
 	fmt.Println("Time elapsed sat:", time.Since(now))
 	if debug {
-		WriteImageToPng(&o, "/tmp/smartcrop_sat.png")
+		WriteImageToPng(&o, "./smartcrop_sat.png")
 	}
 
 	now = time.Now()
@@ -255,7 +255,7 @@ func analyse(img *image.Image) Crop {
 
 	if debug {
 		drawDebugCrop(&topCrop, &o)
-		WriteImageToPng(&o, "/tmp/smartcrop_debug.png")
+		WriteImageToPng(&o, "./smartcrop_debug.png")
 	}
 
 	return topCrop

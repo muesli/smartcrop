@@ -38,7 +38,7 @@ func TestCrop(t *testing.T) {
 	sub, ok := scaledImg.(SubImager)
 	if ok {
 		cropImage := sub.SubImage(image.Rect(topCrop.X, topCrop.Y, topCrop.Width+topCrop.X, topCrop.Height+topCrop.Y))
-		WriteImageToJpeg(&cropImage, "/tmp/smartcrop.jpg")
+		WriteImageToJpeg(&cropImage, "./smartcrop.jpg")
 
 	} else {
 		t.Error(errors.New("No SubImage support"))
