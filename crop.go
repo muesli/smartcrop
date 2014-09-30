@@ -135,28 +135,27 @@ func importance(crop *Crop, x, y int) float64 {
 }
 
 func score(output *image.Image, crop *Crop) Score {
-	o := (*output).(*image.RGBA)
 	height := (*output).Bounds().Size().Y
 	width := (*output).Bounds().Size().X
 	score := Score{}
 
-	for y := 0; y < height; y++ {
-		yoffset := y * width
-		ydownSample := y * scoreDownSample
-		for x := 0; x < width; x++ {
-			//			now := time.Now()
-			imp := importance(crop, x*scoreDownSample, ydownSample)
-			//			fmt.Println("Time elapsed single-imp:", time.Since(now))
+	// FIXME DOWNSAMPLING
 
-			p := yoffset + x*4
+	for y := 0; y < height; y += 1 {
+		for x := 0; x < width; x += 1 {
 
-			r8 := float64(o.Pix[p]) / 255.0
-			g8 := float64(o.Pix[p+1]) / 255.0
-			b8 := float64(o.Pix[p+2]) / 255.0
+			r, g, b, _ := (*output).At(x, y).RGBA()
 
-			score.Skin += r8 * (g8 + skinBias) * imp
-			score.Detail += g8 * imp
-			score.Saturation += b8 * (g8 + saturationBias) * imp
+			r8 := float64(r >> 8)
+			g8 := float64(g >> 8)
+			b8 := float64(b >> 8)
+
+			imp := importance(crop, int(x), int(y))
+			det := g8 / 255.0
+
+			score.Skin += r8 / 255.0 * (det + skinBias) * imp
+			score.Detail += det * imp
+			score.Saturation += b8 / 255.0 * (det + saturationBias) * imp
 		}
 	}
 
