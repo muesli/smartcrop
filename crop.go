@@ -81,8 +81,7 @@ func SmartCrop(img *image.Image, width, height int) (Crop, image.Image, error) {
 			uint(float64((*img).Bounds().Size().X)*prescalefactor),
 			0,
 			*img,
-			resize.NearestNeighbor)
-		WriteImageToJpeg(&lowimg, "/tmp/prescale.jpg")
+			resize.Bicubic) // TODO let the lib user define the interpolation.
 
 	} else {
 		lowimg = *img
