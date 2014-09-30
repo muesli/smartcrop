@@ -10,6 +10,8 @@ import (
 	"math"
 	"os"
 	"time"
+
+	"github.com/nfnt/resize"
 )
 
 var (
@@ -23,7 +25,7 @@ var (
 	skinBrightnessMax       = 1.0
 	skinThreshold           = 0.8
 	skinWeight              = 1.8
-	saturationBrightnessMin = 0.25
+	saturationBrightnessMin = 0.05
 	saturationBrightnessMax = 0.9
 	saturationThreshold     = 0.4
 	saturationBias          = 0.2
@@ -39,6 +41,7 @@ var (
 	outsideImportance = -0.5
 	ruleOfThirds      = true
 	prescale          = true
+	prescalefactor    = 1.0
 	debug             = false
 )
 
@@ -57,26 +60,54 @@ type Crop struct {
 	Score  Score
 }
 
-func SmartCrop(img *image.Image, width, height int) (Crop, error) {
+func SmartCrop(img *image.Image, width, height int) (Crop, image.Image, error) {
 	if width == 0 && height == 0 {
-		return Crop{}, errors.New("Expect either a height or width")
+		return Crop{}, nil, errors.New("Expect either a height or width")
 	}
 
 	scale := math.Min(float64((*img).Bounds().Size().X)/float64(width), float64((*img).Bounds().Size().Y)/float64(height))
-	cropWidth, cropHeight = math.Floor(float64(width)*scale), math.Floor(float64(height)*scale)
+
+	// resize image for faster processing
+	var lowimg image.Image
+
+	if prescale {
+
+		if f := 1 / scale / minScale; f < 1 {
+			prescalefactor = f
+		}
+		fmt.Println(prescalefactor)
+
+		lowimg = resize.Resize(
+			uint(float64((*img).Bounds().Size().X)*prescalefactor),
+			0,
+			*img,
+			resize.Bicubic) // TODO let the lib user define the interpolation.
+
+	} else {
+		lowimg = *img
+	}
+
+	cropWidth, cropHeight = chop(float64(width)*scale*prescalefactor), chop(float64(height)*scale*prescalefactor)
 	minScale = math.Min(maxScale, math.Max(1.0/scale, minScale))
 
 	fmt.Printf("original resolution: %dx%d\n", (*img).Bounds().Size().X, (*img).Bounds().Size().Y)
 	fmt.Printf("scale: %f, cropw: %f, croph: %f, minscale: %f\n", scale, cropWidth, cropHeight, minScale)
 
-	topCrop := analyse(img)
-	return topCrop, nil
+	//topCrop := analyse(img)
+	topCrop := analyse(&lowimg)
+	return topCrop, lowimg, nil
+}
+
+func chop(x float64) float64 {
+	if x < 0 {
+		return math.Ceil(x)
+	}
+	return math.Floor(x)
 }
 
 func thirds(x float64) float64 {
-	x1 := int(x - (1.0 / 3.0) + 1.0)
-	res := (float64(x1%2.0) * 0.5) - 0.5
-	return res * 16.0
+	x = (math.Mod(x-(1.0/3.0)+1.0, 2.0)*0.5 - 0.5) * 16.0
+	return math.Max(1.0-x*x, 0.0)
 }
 
 func importance(crop *Crop, x, y int) float64 {
@@ -103,28 +134,27 @@ func importance(crop *Crop, x, y int) float64 {
 }
 
 func score(output *image.Image, crop *Crop) Score {
-	o := (*output).(*image.RGBA)
 	height := (*output).Bounds().Size().Y
 	width := (*output).Bounds().Size().X
 	score := Score{}
 
-	for y := 0; y < height; y++ {
-		yoffset := y * width
-		ydownSample := y * scoreDownSample
-		for x := 0; x < width; x++ {
-			//			now := time.Now()
-			imp := importance(crop, x*scoreDownSample, ydownSample)
-			//			fmt.Println("Time elapsed single-imp:", time.Since(now))
+	// FIXME DOWNSAMPLING
 
-			p := yoffset + x * 4
+	for y := 0; y < height; y += 1 {
+		for x := 0; x < width; x += 1 {
 
-			r8 := float64(o.Pix[p]) / 255.0
-			g8 := float64(o.Pix[p+1]) / 255.0
-			b8 := float64(o.Pix[p+2]) / 255.0
+			r, g, b, _ := (*output).At(x, y).RGBA()
 
-			score.Skin += r8 * (g8 + skinBias) * imp
-			score.Detail += g8 * imp
-			score.Saturation += b8 * (g8 + saturationBias) * imp
+			r8 := float64(r >> 8)
+			g8 := float64(g >> 8)
+			b8 := float64(b >> 8)
+
+			imp := importance(crop, int(x), int(y))
+			det := g8 / 255.0
+
+			score.Skin += r8 / 255.0 * (det + skinBias) * imp
+			score.Detail += det * imp
+			score.Saturation += b8 / 255.0 * (det + saturationBias) * imp
 		}
 	}
 
@@ -148,17 +178,17 @@ func analyse(img *image.Image) Crop {
 	now := time.Now()
 	edgeDetect(img, &o)
 	fmt.Println("Time elapsed edge:", time.Since(now))
-//	writeImageToJpeg(&o, "/tmp/smartcrop_step1.jpg")
+	//WriteImageToJpeg(&o, "/tmp/smartcrop_edge.jpg")
 
 	now = time.Now()
 	skinDetect(img, &o)
 	fmt.Println("Time elapsed skin:", time.Since(now))
-//	writeImageToJpeg(&o, "/tmp/smartcrop_step2.jpg")
+	//WriteImageToJpeg(&o, "/tmp/smartcrop_skin.jpg")
 
 	now = time.Now()
 	saturationDetect(img, &o)
 	fmt.Println("Time elapsed sat:", time.Since(now))
-//	writeImageToJpeg(&o, "/tmp/smartcrop_step3.jpg")
+	//WriteImageToJpeg(&o, "/tmp/smartcrop_sat.jpg")
 
 	now = time.Now()
 	var topCrop Crop
@@ -228,6 +258,10 @@ func skinCol(c color.Color) float64 {
 	return 1.0 - d
 }
 
+func bounds(l float64) float64 {
+	return math.Min(math.Max(l, 0.0), 255)
+}
+
 func edgeDetect(i *image.Image, o *image.Image) {
 	w := (*i).Bounds().Size().X
 	h := (*i).Bounds().Size().Y
@@ -237,7 +271,8 @@ func edgeDetect(i *image.Image, o *image.Image) {
 			var lightness float64
 
 			if x == 0 || x >= w-1 || y == 0 || y >= h-1 {
-				lightness = cie((*i).At(x, y))
+				//lightness = cie((*i).At(x, y))
+				lightness = 0
 			} else {
 				lightness = cie((*i).At(x, y))*4.0 -
 					cie((*i).At(x, y-1)) -
@@ -246,11 +281,7 @@ func edgeDetect(i *image.Image, o *image.Image) {
 					cie((*i).At(x, y+1))
 			}
 
-			if lightness < 0 {
-				continue
-			}
-
-			nc := color.RGBA{uint8(lightness), uint8(lightness), uint8(lightness), 255}
+			nc := color.RGBA{0, uint8(bounds(lightness)), 0, 255}
 			(*o).(*image.RGBA).Set(x, y, nc)
 		}
 	}
@@ -268,7 +299,7 @@ func skinDetect(i *image.Image, o *image.Image) {
 			if skin > skinThreshold && lightness >= skinBrightnessMin && lightness <= skinBrightnessMax {
 				r := (skin - skinThreshold) * (255.0 / (1.0 - skinThreshold))
 				_, g, b, _ := (*o).At(x, y).RGBA()
-				nc := color.RGBA{uint8(r), uint8(g >> 8), uint8(b >> 8), 255}
+				nc := color.RGBA{uint8(bounds(r)), uint8(g >> 8), uint8(b >> 8), 255}
 				(*o).(*image.RGBA).Set(x, y, nc)
 			} else {
 				_, g, b, _ := (*o).At(x, y).RGBA()
@@ -291,7 +322,7 @@ func saturationDetect(i *image.Image, o *image.Image) {
 			if saturation > saturationThreshold && lightness >= saturationBrightnessMin && lightness <= saturationBrightnessMax {
 				b := (saturation - saturationThreshold) * (255.0 / (1.0 - saturationThreshold))
 				r, g, _, _ := (*o).At(x, y).RGBA()
-				nc := color.RGBA{uint8(r >> 8), uint8(g >> 8), uint8(b), 255}
+				nc := color.RGBA{uint8(r >> 8), uint8(g >> 8), uint8(bounds(b)), 255}
 				(*o).(*image.RGBA).Set(x, y, nc)
 			} else {
 				r, g, _, _ := (*o).At(x, y).RGBA()
@@ -307,9 +338,9 @@ func crops(i *image.Image) []Crop {
 	width := (*i).Bounds().Size().X
 	height := (*i).Bounds().Size().Y
 
-	//minDimension := math.Min(float64(width), float64(height))
-	cropW := cropWidth  //|| minDimension
-	cropH := cropHeight //|| minDimension
+	minDimension := math.Min(float64(width), float64(height))
+	cropW := math.Max(cropWidth, minDimension)
+	cropH := math.Max(cropHeight, minDimension)
 
 	for scale := maxScale; scale >= minScale; scale -= scaleStep {
 		for y := 0; float64(y)+cropH*scale <= float64(height); y += step {
