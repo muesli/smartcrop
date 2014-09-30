@@ -6,7 +6,7 @@ smartcrop implementation in Go
 smartcrop finds good crops for arbitrary images and crop sizes, based on Jonas Wagner's [smartcrop.js](https://github.com/jwagner/smartcrop.js)
 
 ![Example](./gopher_example.jpg)
-Image: [http://pixabay.com/en/prairie-dogs-prairie-dog-croissant-330110/](http://pixabay.com/en/prairie-dogs-prairie-dog-croissant-330110/) Public Domain
+Image: [https://www.flickr.com/photos/usfwspacific/8182486789](https://www.flickr.com/photos/usfwspacific/8182486789) CC BY U.S. Fish & Wildlife
 
 ## Installation
 
