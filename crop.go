@@ -172,6 +172,32 @@ func WriteImageToJpeg(img *image.Image, name string) {
 	jpeg.Encode(fso, (*img), &jpeg.Options{Quality: 90})
 }
 
+func drawDebugCrop(topCrop *Crop, o *image.Image) {
+	w := (*o).Bounds().Size().X
+	h := (*o).Bounds().Size().Y
+
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+
+			r, g, b, _ := (*o).At(x, y).RGBA()
+			r8 := float64(r >> 8)
+			g8 := float64(g >> 8)
+			b8 := float64(b >> 8)
+
+			imp := importance(topCrop, x, y)
+
+			if imp > 0 {
+				g8 += imp * 32
+			} else if imp < 0 {
+				r8 += imp * -64
+			}
+
+			nc := color.RGBA{uint8(bounds(r8)), uint8(bounds(g8)), uint8(b8), 255}
+			(*o).(*image.RGBA).Set(x, y, nc)
+		}
+	}
+}
+
 func analyse(img *image.Image) Crop {
 	o := image.Image(image.NewRGBA((*img).Bounds()))
 
