@@ -6,7 +6,7 @@ import (
 	"image"
 	"image/color"
 	"image/jpeg"
-	_ "image/png"
+	"image/png"
 	"math"
 	"os"
 	"time"
@@ -170,6 +170,16 @@ func WriteImageToJpeg(img *image.Image, name string) {
 	defer fso.Close()
 
 	jpeg.Encode(fso, (*img), &jpeg.Options{Quality: 90})
+}
+
+func WriteImageToPng(img *image.Image, name string) {
+	fso, err := os.Create(name)
+	if err != nil {
+		panic(err)
+	}
+	defer fso.Close()
+
+	png.Encode(fso, (*img))
 }
 
 func drawDebugCrop(topCrop *Crop, o *image.Image) {
