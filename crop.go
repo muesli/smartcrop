@@ -258,6 +258,10 @@ func skinCol(c color.Color) float64 {
 	return 1.0 - d
 }
 
+func bounds(l float64) float64 {
+	return math.Min(math.Max(l, 0.0), 255)
+}
+
 func edgeDetect(i *image.Image, o *image.Image) {
 	w := (*i).Bounds().Size().X
 	h := (*i).Bounds().Size().Y
@@ -277,11 +281,7 @@ func edgeDetect(i *image.Image, o *image.Image) {
 					cie((*i).At(x, y+1))
 			}
 
-			if lightness < 0 {
-				continue
-			}
-
-			nc := color.RGBA{uint8(lightness), uint8(lightness), uint8(lightness), 255}
+			nc := color.RGBA{0, uint8(bounds(lightness)), 0, 255}
 			(*o).(*image.RGBA).Set(x, y, nc)
 		}
 	}
@@ -299,7 +299,7 @@ func skinDetect(i *image.Image, o *image.Image) {
 			if skin > skinThreshold && lightness >= skinBrightnessMin && lightness <= skinBrightnessMax {
 				r := (skin - skinThreshold) * (255.0 / (1.0 - skinThreshold))
 				_, g, b, _ := (*o).At(x, y).RGBA()
-				nc := color.RGBA{uint8(r), uint8(g >> 8), uint8(b >> 8), 255}
+				nc := color.RGBA{uint8(bounds(r)), uint8(g >> 8), uint8(b >> 8), 255}
 				(*o).(*image.RGBA).Set(x, y, nc)
 			} else {
 				_, g, b, _ := (*o).At(x, y).RGBA()
@@ -322,7 +322,7 @@ func saturationDetect(i *image.Image, o *image.Image) {
 			if saturation > saturationThreshold && lightness >= saturationBrightnessMin && lightness <= saturationBrightnessMax {
 				b := (saturation - saturationThreshold) * (255.0 / (1.0 - saturationThreshold))
 				r, g, _, _ := (*o).At(x, y).RGBA()
-				nc := color.RGBA{uint8(r >> 8), uint8(g >> 8), uint8(b), 255}
+				nc := color.RGBA{uint8(r >> 8), uint8(g >> 8), uint8(bounds(b)), 255}
 				(*o).(*image.RGBA).Set(x, y, nc)
 			} else {
 				r, g, _, _ := (*o).At(x, y).RGBA()
