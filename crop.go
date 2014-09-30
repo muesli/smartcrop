@@ -87,13 +87,16 @@ func SmartCrop(img *image.Image, width, height int) (Crop, image.Image, error) {
 		lowimg = *img
 	}
 
+	if debug {
+		WriteImageToPng(&lowimg, "./smartcrop_prescale.png")
+	}
+
 	cropWidth, cropHeight = chop(float64(width)*scale*prescalefactor), chop(float64(height)*scale*prescalefactor)
 	minScale = math.Min(maxScale, math.Max(1.0/scale, minScale))
 
 	fmt.Printf("original resolution: %dx%d\n", (*img).Bounds().Size().X, (*img).Bounds().Size().Y)
 	fmt.Printf("scale: %f, cropw: %f, croph: %f, minscale: %f\n", scale, cropWidth, cropHeight, minScale)
 
-	//topCrop := analyse(img)
 	topCrop := analyse(&lowimg)
 	return topCrop, lowimg, nil
 }
@@ -214,17 +217,23 @@ func analyse(img *image.Image) Crop {
 	now := time.Now()
 	edgeDetect(img, &o)
 	fmt.Println("Time elapsed edge:", time.Since(now))
-	//WriteImageToJpeg(&o, "/tmp/smartcrop_edge.jpg")
+	if debug {
+		WriteImageToPng(&o, "/tmp/smartcrop_edge.png")
+	}
 
 	now = time.Now()
 	skinDetect(img, &o)
 	fmt.Println("Time elapsed skin:", time.Since(now))
-	//WriteImageToJpeg(&o, "/tmp/smartcrop_skin.jpg")
+	if debug {
+		WriteImageToPng(&o, "/tmp/smartcrop_skin.png")
+	}
 
 	now = time.Now()
 	saturationDetect(img, &o)
 	fmt.Println("Time elapsed sat:", time.Since(now))
-	//WriteImageToJpeg(&o, "/tmp/smartcrop_sat.jpg")
+	if debug {
+		WriteImageToPng(&o, "/tmp/smartcrop_sat.png")
+	}
 
 	now = time.Now()
 	var topCrop Crop
@@ -243,6 +252,11 @@ func analyse(img *image.Image) Crop {
 		}
 	}
 	fmt.Println("Time elapsed score:", time.Since(now))
+
+	if debug {
+		drawDebugCrop(&topCrop, &o)
+		WriteImageToPng(&o, "/tmp/smartcrop_debug.png")
+	}
 
 	return topCrop
 }
