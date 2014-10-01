@@ -60,8 +60,8 @@ var (
 	saturationThreshold     = 0.4
 	saturationBias          = 0.2
 	saturationWeight        = 0.3
+	scoreDownSample         = 8
 	// step * minscale rounded down to the next power of two should be good
-	scoreDownSample   = 8
 	step              = 8
 	scaleStep         = 0.1
 	minScale          = 0.9
@@ -175,10 +175,12 @@ func score(output *image.Image, crop *Crop) Score {
 	width := (*output).Bounds().Size().X
 	score := Score{}
 
-	// FIXME DOWNSAMPLING
+	// same loops but with downsampling
+	//for y := 0; y <= height-scoreDownSample; y += scoreDownSample {
+	//	for x := 0; x <= width-scoreDownSample; x += scoreDownSample {
 
-	for y := 0; y < height; y += 1 {
-		for x := 0; x < width; x += 1 {
+	for y := 0; y <= height; y++ {
+		for x := 0; x <= width; x++ {
 
 			r, g, b, _ := (*output).At(x, y).RGBA()
 
