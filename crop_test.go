@@ -1,3 +1,29 @@
+/*
+ * Copyright (c) 2014 Christian Muehlhaeuser
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ *	Authors:
+ *		Christian Muehlhaeuser <muesli@gmail.com>
+ *		Michael Wendland <michael@michiwend.com>
+ */
+
 package smartcrop
 
 import (
@@ -13,7 +39,7 @@ import (
 )
 
 var (
-	testFile = "./samples/test.png"
+	testFile = "./samples/gopher.jpg"
 )
 
 type SubImager interface {
@@ -29,7 +55,7 @@ func TestCrop(t *testing.T) {
 		t.Error(err)
 	}
 
-	topCrop, scaledImg, err := SmartCrop(&img, 300, 300)
+	topCrop, scaledImg, err := SmartCrop(&img, 250, 250)
 	if err != nil {
 		t.Error(err)
 	}
@@ -38,7 +64,7 @@ func TestCrop(t *testing.T) {
 	sub, ok := scaledImg.(SubImager)
 	if ok {
 		cropImage := sub.SubImage(image.Rect(topCrop.X, topCrop.Y, topCrop.Width+topCrop.X, topCrop.Height+topCrop.Y))
-		WriteImageToJpeg(&cropImage, "/tmp/smartcrop.jpg")
+		writeImageToJpeg(&cropImage, "./smartcrop.jpg")
 
 	} else {
 		t.Error(errors.New("No SubImage support"))
@@ -67,21 +93,22 @@ func BenchmarkImageDir(b *testing.B) {
 				b.Error(err)
 			}
 
-			topCrop, scaledImg, err := SmartCrop(&img, 300, 300)
+			topCrop, scaledImg, err := SmartCrop(&img, 250, 250)
 			if err != nil {
 				b.Error(err)
 			}
+			fmt.Printf("Top crop: %+v\n", topCrop)
 
 			sub, ok := scaledImg.(SubImager)
+			//sub, ok := img.(SubImager)
 			if ok {
 				cropImage := sub.SubImage(image.Rect(topCrop.X, topCrop.Y, topCrop.Width+topCrop.X, topCrop.Height+topCrop.Y))
-				WriteImageToJpeg(&cropImage, "/tmp/smartcrop/smartcrop-"+file.Name())
+				writeImageToJpeg(&cropImage, "/tmp/smartcrop/smartcrop-"+file.Name())
 			} else {
 				b.Error(errors.New("No SubImage support"))
 			}
 		}
 	}
-
 	//fmt.Println("average time/image:", b.t
 
 }

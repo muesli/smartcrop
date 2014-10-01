@@ -1,3 +1,33 @@
+/*
+ * Copyright (c) 2014 Christian Muehlhaeuser
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ *	Authors:
+ *		Christian Muehlhaeuser <muesli@gmail.com>
+ *		Michael Wendland <michael@michiwend.com>
+ */
+
+/*
+package smartcrop implements a content aware image cropping library based on
+Jonas Wagner's smartcrop.js https://github.com/jwagner/smartcrop.js
+*/
 package smartcrop
 
 import (
@@ -6,7 +36,7 @@ import (
 	"image"
 	"image/color"
 	"image/jpeg"
-	_ "image/png"
+	"image/png"
 	"math"
 	"os"
 	"time"
@@ -30,8 +60,8 @@ var (
 	saturationThreshold     = 0.4
 	saturationBias          = 0.2
 	saturationWeight        = 0.3
+	scoreDownSample         = 8
 	// step * minscale rounded down to the next power of two should be good
-	scoreDownSample   = 8
 	step              = 8
 	scaleStep         = 0.1
 	minScale          = 0.9
@@ -72,7 +102,7 @@ func SmartCrop(img *image.Image, width, height int) (Crop, image.Image, error) {
 
 	if prescale {
 
-		if f := 1 / scale / minScale; f < 1 {
+		if f := 1.0 / scale / minScale; f < 1.0 {
 			prescalefactor = f
 		}
 		fmt.Println(prescalefactor)
@@ -87,13 +117,16 @@ func SmartCrop(img *image.Image, width, height int) (Crop, image.Image, error) {
 		lowimg = *img
 	}
 
+	if debug {
+		writeImageToPng(&lowimg, "./smartcrop_prescale.png")
+	}
+
 	cropWidth, cropHeight = chop(float64(width)*scale*prescalefactor), chop(float64(height)*scale*prescalefactor)
 	minScale = math.Min(maxScale, math.Max(1.0/scale, minScale))
 
 	fmt.Printf("original resolution: %dx%d\n", (*img).Bounds().Size().X, (*img).Bounds().Size().Y)
 	fmt.Printf("scale: %f, cropw: %f, croph: %f, minscale: %f\n", scale, cropWidth, cropHeight, minScale)
 
-	//topCrop := analyse(img)
 	topCrop := analyse(&lowimg)
 	return topCrop, lowimg, nil
 }
@@ -108,6 +141,10 @@ func chop(x float64) float64 {
 func thirds(x float64) float64 {
 	x = (math.Mod(x-(1.0/3.0)+1.0, 2.0)*0.5 - 0.5) * 16.0
 	return math.Max(1.0-x*x, 0.0)
+}
+
+func bounds(l float64) float64 {
+	return math.Min(math.Max(l, 0.0), 255)
 }
 
 func importance(crop *Crop, x, y int) float64 {
@@ -138,10 +175,12 @@ func score(output *image.Image, crop *Crop) Score {
 	width := (*output).Bounds().Size().X
 	score := Score{}
 
-	// FIXME DOWNSAMPLING
+	// same loops but with downsampling
+	//for y := 0; y <= height-scoreDownSample; y += scoreDownSample {
+	//	for x := 0; x <= width-scoreDownSample; x += scoreDownSample {
 
-	for y := 0; y < height; y += 1 {
-		for x := 0; x < width; x += 1 {
+	for y := 0; y <= height; y++ {
+		for x := 0; x <= width; x++ {
 
 			r, g, b, _ := (*output).At(x, y).RGBA()
 
@@ -162,14 +201,50 @@ func score(output *image.Image, crop *Crop) Score {
 	return score
 }
 
-func WriteImageToJpeg(img *image.Image, name string) {
+func writeImageToJpeg(img *image.Image, name string) {
 	fso, err := os.Create(name)
 	if err != nil {
 		panic(err)
 	}
 	defer fso.Close()
 
-	jpeg.Encode(fso, (*img), &jpeg.Options{Quality: 90})
+	jpeg.Encode(fso, (*img), &jpeg.Options{Quality: 100})
+}
+
+func writeImageToPng(img *image.Image, name string) {
+	fso, err := os.Create(name)
+	if err != nil {
+		panic(err)
+	}
+	defer fso.Close()
+
+	png.Encode(fso, (*img))
+}
+
+func drawDebugCrop(topCrop *Crop, o *image.Image) {
+	w := (*o).Bounds().Size().X
+	h := (*o).Bounds().Size().Y
+
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+
+			r, g, b, _ := (*o).At(x, y).RGBA()
+			r8 := float64(r >> 8)
+			g8 := float64(g >> 8)
+			b8 := uint8(b >> 8)
+
+			imp := importance(topCrop, x, y)
+
+			if imp > 0 {
+				g8 += imp * 32
+			} else if imp < 0 {
+				r8 += imp * -64
+			}
+
+			nc := color.RGBA{uint8(bounds(r8)), uint8(bounds(g8)), b8, 255}
+			(*o).(*image.RGBA).Set(x, y, nc)
+		}
+	}
 }
 
 func analyse(img *image.Image) Crop {
@@ -178,17 +253,23 @@ func analyse(img *image.Image) Crop {
 	now := time.Now()
 	edgeDetect(img, &o)
 	fmt.Println("Time elapsed edge:", time.Since(now))
-	//WriteImageToJpeg(&o, "/tmp/smartcrop_edge.jpg")
+	if debug {
+		writeImageToPng(&o, "./smartcrop_edge.png")
+	}
 
 	now = time.Now()
 	skinDetect(img, &o)
 	fmt.Println("Time elapsed skin:", time.Since(now))
-	//WriteImageToJpeg(&o, "/tmp/smartcrop_skin.jpg")
+	if debug {
+		writeImageToPng(&o, "./smartcrop_skin.png")
+	}
 
 	now = time.Now()
 	saturationDetect(img, &o)
 	fmt.Println("Time elapsed sat:", time.Since(now))
-	//WriteImageToJpeg(&o, "/tmp/smartcrop_sat.jpg")
+	if debug {
+		writeImageToPng(&o, "./smartcrop_sat.png")
+	}
 
 	now = time.Now()
 	var topCrop Crop
@@ -207,6 +288,11 @@ func analyse(img *image.Image) Crop {
 		}
 	}
 	fmt.Println("Time elapsed score:", time.Since(now))
+
+	if debug {
+		drawDebugCrop(&topCrop, &o)
+		writeImageToPng(&o, "./smartcrop_debug.png")
+	}
 
 	return topCrop
 }
@@ -256,10 +342,6 @@ func skinCol(c color.Color) float64 {
 
 	d := math.Sqrt(math.Pow(rd, 2) + math.Pow(gd, 2) + math.Pow(bd, 2))
 	return 1.0 - d
-}
-
-func bounds(l float64) float64 {
-	return math.Min(math.Max(l, 0.0), 255)
 }
 
 func edgeDetect(i *image.Image, o *image.Image) {
@@ -339,8 +421,18 @@ func crops(i *image.Image) []Crop {
 	height := (*i).Bounds().Size().Y
 
 	minDimension := math.Min(float64(width), float64(height))
-	cropW := math.Max(cropWidth, minDimension)
-	cropH := math.Max(cropHeight, minDimension)
+	var cropW, cropH float64
+
+	if cropWidth != 0.0 {
+		cropW = cropWidth
+	} else {
+		cropW = minDimension
+	}
+	if cropHeight != 0.0 {
+		cropH = cropHeight
+	} else {
+		cropH = minDimension
+	}
 
 	for scale := maxScale; scale >= minScale; scale -= scaleStep {
 		for y := 0; float64(y)+cropH*scale <= float64(height); y += step {
