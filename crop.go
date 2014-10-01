@@ -102,7 +102,7 @@ func SmartCrop(img *image.Image, width, height int) (Crop, image.Image, error) {
 
 	if prescale {
 
-		if f := 1 / scale / minScale; f < 1 {
+		if f := 1.0 / scale / minScale; f < 1.0 {
 			prescalefactor = f
 		}
 		fmt.Println(prescalefactor)
@@ -141,6 +141,10 @@ func chop(x float64) float64 {
 func thirds(x float64) float64 {
 	x = (math.Mod(x-(1.0/3.0)+1.0, 2.0)*0.5 - 0.5) * 16.0
 	return math.Max(1.0-x*x, 0.0)
+}
+
+func bounds(l float64) float64 {
+	return math.Min(math.Max(l, 0.0), 255)
 }
 
 func importance(crop *Crop, x, y int) float64 {
@@ -225,7 +229,7 @@ func drawDebugCrop(topCrop *Crop, o *image.Image) {
 			r, g, b, _ := (*o).At(x, y).RGBA()
 			r8 := float64(r >> 8)
 			g8 := float64(g >> 8)
-			b8 := float64(b >> 8)
+			b8 := uint8(b >> 8)
 
 			imp := importance(topCrop, x, y)
 
@@ -235,7 +239,7 @@ func drawDebugCrop(topCrop *Crop, o *image.Image) {
 				r8 += imp * -64
 			}
 
-			nc := color.RGBA{uint8(bounds(r8)), uint8(bounds(g8)), uint8(b8), 255}
+			nc := color.RGBA{uint8(bounds(r8)), uint8(bounds(g8)), b8, 255}
 			(*o).(*image.RGBA).Set(x, y, nc)
 		}
 	}
@@ -336,10 +340,6 @@ func skinCol(c color.Color) float64 {
 
 	d := math.Sqrt(math.Pow(rd, 2) + math.Pow(gd, 2) + math.Pow(bd, 2))
 	return 1.0 - d
-}
-
-func bounds(l float64) float64 {
-	return math.Min(math.Max(l, 0.0), 255)
 }
 
 func edgeDetect(i *image.Image, o *image.Image) {
