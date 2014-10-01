@@ -48,7 +48,6 @@ func TestCrop(t *testing.T) {
 
 func BenchmarkImageDir(b *testing.B) {
 
-	b.SetParallelism(4)
 	b.StopTimer()
 
 	files, err := ioutil.ReadDir("./samples")
