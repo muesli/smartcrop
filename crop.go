@@ -118,7 +118,7 @@ func SmartCrop(img *image.Image, width, height int) (Crop, image.Image, error) {
 	}
 
 	if debug {
-		WriteImageToPng(&lowimg, "./smartcrop_prescale.png")
+		writeImageToPng(&lowimg, "./smartcrop_prescale.png")
 	}
 
 	cropWidth, cropHeight = chop(float64(width)*scale*prescalefactor), chop(float64(height)*scale*prescalefactor)
@@ -201,17 +201,17 @@ func score(output *image.Image, crop *Crop) Score {
 	return score
 }
 
-func WriteImageToJpeg(img *image.Image, name string) {
+func writeImageToJpeg(img *image.Image, name string) {
 	fso, err := os.Create(name)
 	if err != nil {
 		panic(err)
 	}
 	defer fso.Close()
 
-	jpeg.Encode(fso, (*img), &jpeg.Options{Quality: 90})
+	jpeg.Encode(fso, (*img), &jpeg.Options{Quality: 100})
 }
 
-func WriteImageToPng(img *image.Image, name string) {
+func writeImageToPng(img *image.Image, name string) {
 	fso, err := os.Create(name)
 	if err != nil {
 		panic(err)
@@ -254,21 +254,21 @@ func analyse(img *image.Image) Crop {
 	edgeDetect(img, &o)
 	fmt.Println("Time elapsed edge:", time.Since(now))
 	if debug {
-		WriteImageToPng(&o, "./smartcrop_edge.png")
+		writeImageToPng(&o, "./smartcrop_edge.png")
 	}
 
 	now = time.Now()
 	skinDetect(img, &o)
 	fmt.Println("Time elapsed skin:", time.Since(now))
 	if debug {
-		WriteImageToPng(&o, "./smartcrop_skin.png")
+		writeImageToPng(&o, "./smartcrop_skin.png")
 	}
 
 	now = time.Now()
 	saturationDetect(img, &o)
 	fmt.Println("Time elapsed sat:", time.Since(now))
 	if debug {
-		WriteImageToPng(&o, "./smartcrop_sat.png")
+		writeImageToPng(&o, "./smartcrop_sat.png")
 	}
 
 	now = time.Now()
@@ -291,7 +291,7 @@ func analyse(img *image.Image) Crop {
 
 	if debug {
 		drawDebugCrop(&topCrop, &o)
-		WriteImageToPng(&o, "./smartcrop_debug.png")
+		writeImageToPng(&o, "./smartcrop_debug.png")
 	}
 
 	return topCrop

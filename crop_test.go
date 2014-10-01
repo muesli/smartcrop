@@ -64,7 +64,7 @@ func TestCrop(t *testing.T) {
 	sub, ok := scaledImg.(SubImager)
 	if ok {
 		cropImage := sub.SubImage(image.Rect(topCrop.X, topCrop.Y, topCrop.Width+topCrop.X, topCrop.Height+topCrop.Y))
-		WriteImageToJpeg(&cropImage, "./smartcrop.jpg")
+		writeImageToJpeg(&cropImage, "./smartcrop.jpg")
 
 	} else {
 		t.Error(errors.New("No SubImage support"))
@@ -102,7 +102,7 @@ func BenchmarkImageDir(b *testing.B) {
 			sub, ok := scaledImg.(SubImager)
 			if ok {
 				cropImage := sub.SubImage(image.Rect(topCrop.X, topCrop.Y, topCrop.Width+topCrop.X, topCrop.Height+topCrop.Y))
-				WriteImageToJpeg(&cropImage, "/tmp/smartcrop/smartcrop-"+file.Name())
+				writeImageToJpeg(&cropImage, "/tmp/smartcrop/smartcrop-"+file.Name())
 			} else {
 				b.Error(errors.New("No SubImage support"))
 			}
