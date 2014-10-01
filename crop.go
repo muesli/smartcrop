@@ -419,8 +419,18 @@ func crops(i *image.Image) []Crop {
 	height := (*i).Bounds().Size().Y
 
 	minDimension := math.Min(float64(width), float64(height))
-	cropW := math.Max(cropWidth, minDimension)
-	cropH := math.Max(cropHeight, minDimension)
+	var cropW, cropH float64
+
+	if cropWidth != 0.0 {
+		cropW = cropWidth
+	} else {
+		cropW = minDimension
+	}
+	if cropHeight != 0.0 {
+		cropH = cropHeight
+	} else {
+		cropH = minDimension
+	}
 
 	for scale := maxScale; scale >= minScale; scale -= scaleStep {
 		for y := 0; float64(y)+cropH*scale <= float64(height); y += step {
