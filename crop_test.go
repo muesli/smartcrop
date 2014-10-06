@@ -55,13 +55,13 @@ func TestCrop(t *testing.T) {
 		t.Error(err)
 	}
 
-	topCrop, scaledImg, err := SmartCrop(&img, 250, 250)
+	topCrop, err := SmartCrop(&img, 250, 0)
 	if err != nil {
 		t.Error(err)
 	}
 	fmt.Printf("Top crop: %+v\n", topCrop)
 
-	sub, ok := scaledImg.(SubImager)
+	sub, ok := img.(SubImager)
 	if ok {
 		cropImage := sub.SubImage(image.Rect(topCrop.X, topCrop.Y, topCrop.Width+topCrop.X, topCrop.Height+topCrop.Y))
 		writeImageToJpeg(&cropImage, "./smartcrop.jpg")
@@ -93,13 +93,13 @@ func BenchmarkImageDir(b *testing.B) {
 				b.Error(err)
 			}
 
-			topCrop, scaledImg, err := SmartCrop(&img, 250, 250)
+			topCrop, err := SmartCrop(&img, 900, 500)
 			if err != nil {
 				b.Error(err)
 			}
 			fmt.Printf("Top crop: %+v\n", topCrop)
 
-			sub, ok := scaledImg.(SubImager)
+			sub, ok := img.(SubImager)
 			//sub, ok := img.(SubImager)
 			if ok {
 				cropImage := sub.SubImage(image.Rect(topCrop.X, topCrop.Y, topCrop.Width+topCrop.X, topCrop.Height+topCrop.Y))
