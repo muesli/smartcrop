@@ -90,9 +90,11 @@ type Crop struct {
 	Score  Score
 }
 
-func SmartCrop(img *image.Image, width, height int) (Crop, image.Image, error) {
+// SmartCrop applies the smartcrop algorithms on the the given image and returns
+// the top crop or an error if somthing went wrong.
+func SmartCrop(img *image.Image, width, height int) (Crop, error) {
 	if width == 0 && height == 0 {
-		return Crop{}, nil, errors.New("Expect either a height or width")
+		return Crop{}, errors.New("Expect either a height or width")
 	}
 
 	scale := math.Min(float64((*img).Bounds().Size().X)/float64(width), float64((*img).Bounds().Size().Y)/float64(height))
@@ -128,7 +130,15 @@ func SmartCrop(img *image.Image, width, height int) (Crop, image.Image, error) {
 	fmt.Printf("scale: %f, cropw: %f, croph: %f, minscale: %f\n", scale, cropWidth, cropHeight, minScale)
 
 	topCrop := analyse(&lowimg)
-	return topCrop, lowimg, nil
+
+	if prescale == true {
+		topCrop.X = int(chop(float64(topCrop.X) / prescalefactor))
+		topCrop.Y = int(chop(float64(topCrop.Y) / prescalefactor))
+		topCrop.Width = int(chop(float64(topCrop.Width) / prescalefactor))
+		topCrop.Height = int(chop(float64(topCrop.Height) / prescalefactor))
+	}
+
+	return topCrop, nil
 }
 
 func chop(x float64) float64 {
