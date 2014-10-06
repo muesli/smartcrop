@@ -46,8 +46,6 @@ import (
 
 var (
 	aspect                  = 0
-	cropWidth               = 0.0
-	cropHeight              = 0.0
 	detailWeight            = 0.2
 	skinColor               = [3]float64{0.78, 0.57, 0.44}
 	skinBias                = 0.01
@@ -123,13 +121,13 @@ func SmartCrop(img *image.Image, width, height int) (Crop, error) {
 		writeImageToPng(&lowimg, "./smartcrop_prescale.png")
 	}
 
-	cropWidth, cropHeight = chop(float64(width)*scale*prescalefactor), chop(float64(height)*scale*prescalefactor)
+	cropWidth, cropHeight := chop(float64(width)*scale*prescalefactor), chop(float64(height)*scale*prescalefactor)
 	minScale = math.Min(maxScale, math.Max(1.0/scale, minScale))
 
 	fmt.Printf("original resolution: %dx%d\n", (*img).Bounds().Size().X, (*img).Bounds().Size().Y)
 	fmt.Printf("scale: %f, cropw: %f, croph: %f, minscale: %f\n", scale, cropWidth, cropHeight, minScale)
 
-	topCrop := analyse(&lowimg)
+	topCrop := analyse(&lowimg, cropWidth, cropHeight)
 
 	if prescale == true {
 		topCrop.X = int(chop(float64(topCrop.X) / prescalefactor))
@@ -257,7 +255,7 @@ func drawDebugCrop(topCrop *Crop, o *image.Image) {
 	}
 }
 
-func analyse(img *image.Image) Crop {
+func analyse(img *image.Image, cropWidth, cropHeight float64) Crop {
 	o := image.Image(image.NewRGBA((*img).Bounds()))
 
 	now := time.Now()
@@ -284,7 +282,7 @@ func analyse(img *image.Image) Crop {
 	now = time.Now()
 	var topCrop Crop
 	topScore := -1.0
-	cs := crops(&o)
+	cs := crops(&o, cropWidth, cropHeight)
 	fmt.Println("Time elapsed crops:", time.Since(now), len(cs))
 
 	now = time.Now()
@@ -425,7 +423,7 @@ func saturationDetect(i *image.Image, o *image.Image) {
 	}
 }
 
-func crops(i *image.Image) []Crop {
+func crops(i *image.Image, cropWidth, cropHeight float64) []Crop {
 	res := []Crop{}
 	width := (*i).Bounds().Size().X
 	height := (*i).Bounds().Size().Y
