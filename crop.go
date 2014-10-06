@@ -187,8 +187,8 @@ func score(output *image.Image, crop *Crop) Score {
 	//for y := 0; y <= height-scoreDownSample; y += scoreDownSample {
 	//	for x := 0; x <= width-scoreDownSample; x += scoreDownSample {
 
-	for y := 0; y <= height; y++ {
-		for x := 0; x <= width; x++ {
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
 
 			r, g, b, _ := (*output).At(x, y).RGBA()
 
