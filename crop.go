@@ -44,10 +44,10 @@ import (
 	"github.com/nfnt/resize"
 )
 
-var (
-	aspect                  = 0
+var skinColor = [3]float64{0.78, 0.57, 0.44}
+
+const (
 	detailWeight            = 0.2
-	skinColor               = [3]float64{0.78, 0.57, 0.44}
 	skinBias                = 0.01
 	skinBrightnessMin       = 0.2
 	skinBrightnessMax       = 1.0
@@ -69,7 +69,6 @@ var (
 	outsideImportance = -0.5
 	ruleOfThirds      = true
 	prescale          = true
-	prescalefactor    = 1.0
 	debug             = false
 )
 
@@ -99,6 +98,7 @@ func SmartCrop(img *image.Image, width, height int) (Crop, error) {
 
 	// resize image for faster processing
 	var lowimg image.Image
+	var prescalefactor = 1.0
 
 	if prescale {
 
@@ -122,12 +122,12 @@ func SmartCrop(img *image.Image, width, height int) (Crop, error) {
 	}
 
 	cropWidth, cropHeight := chop(float64(width)*scale*prescalefactor), chop(float64(height)*scale*prescalefactor)
-	minScale = math.Min(maxScale, math.Max(1.0/scale, minScale))
+	realMinScale := math.Min(maxScale, math.Max(1.0/scale, minScale))
 
 	fmt.Printf("original resolution: %dx%d\n", (*img).Bounds().Size().X, (*img).Bounds().Size().Y)
-	fmt.Printf("scale: %f, cropw: %f, croph: %f, minscale: %f\n", scale, cropWidth, cropHeight, minScale)
+	fmt.Printf("scale: %f, cropw: %f, croph: %f, minscale: %f\n", scale, cropWidth, cropHeight, realMinScale)
 
-	topCrop := analyse(&lowimg, cropWidth, cropHeight)
+	topCrop := analyse(&lowimg, cropWidth, cropHeight, realMinScale)
 
 	if prescale == true {
 		topCrop.X = int(chop(float64(topCrop.X) / prescalefactor))
@@ -255,7 +255,7 @@ func drawDebugCrop(topCrop *Crop, o *image.Image) {
 	}
 }
 
-func analyse(img *image.Image, cropWidth, cropHeight float64) Crop {
+func analyse(img *image.Image, cropWidth, cropHeight, realMinScale float64) Crop {
 	o := image.Image(image.NewRGBA((*img).Bounds()))
 
 	now := time.Now()
@@ -282,7 +282,7 @@ func analyse(img *image.Image, cropWidth, cropHeight float64) Crop {
 	now = time.Now()
 	var topCrop Crop
 	topScore := -1.0
-	cs := crops(&o, cropWidth, cropHeight)
+	cs := crops(&o, cropWidth, cropHeight, realMinScale)
 	fmt.Println("Time elapsed crops:", time.Since(now), len(cs))
 
 	now = time.Now()
@@ -423,7 +423,7 @@ func saturationDetect(i *image.Image, o *image.Image) {
 	}
 }
 
-func crops(i *image.Image, cropWidth, cropHeight float64) []Crop {
+func crops(i *image.Image, cropWidth, cropHeight, realMinScale float64) []Crop {
 	res := []Crop{}
 	width := (*i).Bounds().Size().X
 	height := (*i).Bounds().Size().Y
@@ -442,7 +442,7 @@ func crops(i *image.Image, cropWidth, cropHeight float64) []Crop {
 		cropH = minDimension
 	}
 
-	for scale := maxScale; scale >= minScale; scale -= scaleStep {
+	for scale := maxScale; scale >= realMinScale; scale -= scaleStep {
 		for y := 0; float64(y)+cropH*scale <= float64(height); y += step {
 			for x := 0; float64(x)+cropW*scale <= float64(width); x += step {
 				res = append(res, Crop{
