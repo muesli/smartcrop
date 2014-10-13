@@ -267,11 +267,18 @@ func analyse(img *image.Image, cropWidth, cropHeight, realMinScale float64) Crop
 		writeImageToPng(&o, "./smartcrop_edge.png")
 	}
 
+	//now = time.Now()
+	//skinDetect(img, &o)
+	//fmt.Println("Time elapsed skin:", time.Since(now))
+	//if debug {
+	//	writeImageToPng(&o, "./smartcrop_skin.png")
+	//}
+
 	now = time.Now()
-	skinDetect(img, &o)
-	fmt.Println("Time elapsed skin:", time.Since(now))
+	faceDetect(img, &o)
+	fmt.Println("Time elapsed face:", time.Since(now))
 	if debug {
-		writeImageToPng(&o, "./smartcrop_skin.png")
+		writeImageToPng(&o, "./smartcrop_face.png")
 	}
 
 	now = time.Now()
