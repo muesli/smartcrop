@@ -35,12 +35,14 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"image/draw"
 	"image/jpeg"
 	"image/png"
 	"math"
 	"os"
 	"time"
 
+	"github.com/lazywei/go-opencv/opencv"
 	"github.com/nfnt/resize"
 )
 
@@ -374,6 +376,31 @@ func edgeDetect(i *image.Image, o *image.Image) {
 			nc := color.RGBA{0, uint8(bounds(lightness)), 0, 255}
 			(*o).(*image.RGBA).Set(x, y, nc)
 		}
+	}
+}
+
+func faceDetect(i *image.Image, o *image.Image) {
+
+	red := image.NewUniform(color.RGBA{255, 0, 0, 255})
+
+	cvImage := opencv.FromImage(*i)
+	cascade := opencv.LoadHaarClassifierCascade("./haarcascade_frontalface_alt.xml")
+	faces := cascade.DetectObjects(cvImage)
+
+	if debug == true {
+		fmt.Println("Faces detected:", len(faces))
+	}
+
+	for _, face := range faces {
+		if debug == true {
+			fmt.Printf("Face: x: %d y: %d w: %d h: %d\n", face.X(), face.Y(), face.Width(), face.Height())
+		}
+		draw.Draw(
+			(*o).(*image.RGBA),
+			image.Rect(face.X(), face.Y(), face.Width(), face.Height()),
+			red,
+			image.ZP,
+			draw.Src)
 	}
 }
 
