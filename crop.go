@@ -71,7 +71,7 @@ const (
 	outsideImportance = -0.5
 	ruleOfThirds      = true
 	prescale          = true
-	debug             = false
+	debug             = true
 )
 
 type Score struct {
@@ -186,11 +186,11 @@ func score(output *image.Image, crop *Crop) Score {
 	score := Score{}
 
 	// same loops but with downsampling
-	//for y := 0; y <= height-scoreDownSample; y += scoreDownSample {
-	//	for x := 0; x <= width-scoreDownSample; x += scoreDownSample {
+	for y := 0; y <= height-scoreDownSample; y += scoreDownSample {
+		for x := 0; x <= width-scoreDownSample; x += scoreDownSample {
 
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
+			//for y := 0; y < height; y++ {
+			//for x := 0; x < width; x++ {
 
 			r, g, b, _ := (*output).At(x, y).RGBA()
 
