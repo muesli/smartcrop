@@ -404,7 +404,7 @@ func faceDetect(i *image.Image, o *image.Image) {
 		}
 		draw.Draw(
 			(*o).(*image.RGBA),
-			image.Rect(face.X(), face.Y(), face.Width(), face.Height()),
+			image.Rect(face.X(), face.Y(), face.X()+face.Width(), face.Y()+face.Height()),
 			red,
 			image.ZP,
 			draw.Src)
