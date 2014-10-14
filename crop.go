@@ -73,6 +73,7 @@ const (
 	outsideImportance = -0.5
 	ruleOfThirds      = true
 	prescale          = true
+	prescaleMin       = 400.00
 	debug             = true
 )
 
@@ -106,7 +107,10 @@ func SmartCrop(img *image.Image, width, height int) (Crop, error) {
 
 	if prescale {
 
-		if f := 1.0 / scale / minScale; f < 1.0 {
+		//if f := 1.0 / scale / minScale; f < 1.0 {
+		//	prescalefactor = f
+		//}
+		if f := prescaleMin / math.Min(float64((*img).Bounds().Size().X), float64((*img).Bounds().Size().Y)); f < 1.0 {
 			prescalefactor = f
 		}
 		fmt.Println(prescalefactor)
