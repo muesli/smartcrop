@@ -49,11 +49,13 @@ import (
 var skinColor = [3]float64{0.78, 0.57, 0.44}
 
 const (
-	detailWeight            = 0.2
-	skinBias                = 0.01
-	skinBrightnessMin       = 0.2
-	skinBrightnessMax       = 1.0
-	skinThreshold           = 0.8
+	detailWeight = 0.2
+	//skinBias          = 0.01
+	skinBias          = 0.9
+	skinBrightnessMin = 0.2
+	skinBrightnessMax = 1.0
+	skinThreshold     = 0.8
+	//skinWeight              = 1.8
 	skinWeight              = 1.8
 	saturationBrightnessMin = 0.05
 	saturationBrightnessMax = 0.9
