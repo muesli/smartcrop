@@ -35,13 +35,13 @@ import (
 	"fmt"
 	"image"
 	"image/color"
-	"image/draw"
 	"image/jpeg"
 	"image/png"
 	"math"
 	"os"
 	"time"
 
+	"code.google.com/p/draw2d/draw2d"
 	"github.com/lazywei/go-opencv/opencv"
 	"github.com/nfnt/resize"
 )
@@ -388,11 +388,11 @@ func edgeDetect(i *image.Image, o *image.Image) {
 
 func faceDetect(i *image.Image, o *image.Image) {
 
-	red := image.NewUniform(color.RGBA{255, 0, 0, 255})
-
 	cvImage := opencv.FromImage(*i)
 	cascade := opencv.LoadHaarClassifierCascade("./haarcascade_frontalface_alt.xml")
 	faces := cascade.DetectObjects(cvImage)
+
+	gc := draw2d.NewGraphicContext((*o).(*image.RGBA))
 
 	if debug == true {
 		fmt.Println("Faces detected:", len(faces))
@@ -402,13 +402,16 @@ func faceDetect(i *image.Image, o *image.Image) {
 		if debug == true {
 			fmt.Printf("Face: x: %d y: %d w: %d h: %d\n", face.X(), face.Y(), face.Width(), face.Height())
 		}
-		draw.Draw(
-			(*o).(*image.RGBA),
-			image.Rect(face.X(), face.Y(), face.X()+face.Width(), face.Y()+face.Height()),
-			red,
-			image.ZP,
-			draw.Src)
+		draw2d.Ellipse(
+			gc,
+			float64(face.X()+(face.Width()/2)),
+			float64(face.Y()+(face.Height()/2)),
+			float64(face.Width()/2),
+			float64(face.Height())/2)
+		gc.SetFillColor(color.RGBA{255, 0, 0, 255})
+		gc.Fill()
 	}
+
 }
 
 func skinDetect(i *image.Image, o *image.Image) {
