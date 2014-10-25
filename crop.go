@@ -168,9 +168,9 @@ func importance(crop *Crop, x, y int) float64 {
 
 	dx := math.Max(px-1.0+edgeRadius, 0.0)
 	dy := math.Max(py-1.0+edgeRadius, 0.0)
-	d := (math.Pow(dx, 2) + math.Pow(dy, 2)) * edgeWeight
+	d := (dx*dx + dy*dy) * edgeWeight
 
-	s := 1.41 - math.Sqrt(math.Pow(px, 2)+math.Pow(py, 2))
+	s := 1.41 - math.Sqrt(px*px+py*py)
 	if ruleOfThirds {
 		s += (math.Max(0.0, s+d+0.5) * 1.2) * (thirds(px) + thirds(py))
 	}
@@ -343,12 +343,12 @@ func skinCol(c color.Color) float64 {
 	g8 := float64(g >> 8)
 	b8 := float64(b >> 8)
 
-	mag := math.Sqrt(math.Pow(r8, 2) + math.Pow(g8, 2) + math.Pow(b8, 2))
+	mag := math.Sqrt(r8*r8 + g8*g8 + b8*b8)
 	rd := r8/mag - skinColor[0]
 	gd := g8/mag - skinColor[1]
 	bd := b8/mag - skinColor[2]
 
-	d := math.Sqrt(math.Pow(rd, 2) + math.Pow(gd, 2) + math.Pow(bd, 2))
+	d := math.Sqrt(rd*rd + gd*gd + bd*bd)
 	return 1.0 - d
 }
 
