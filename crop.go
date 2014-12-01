@@ -352,9 +352,25 @@ func skinCol(c color.Color) float64 {
 	return 1.0 - d
 }
 
+func makeCies(img *image.Image) []float64 {
+	w := (*img).Bounds().Size().X
+	h := (*img).Bounds().Size().Y
+	cies := make([]float64, h*w, h*w)
+	i := 0
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			cies[i] = cie((*img).At(x, y))
+			i++
+		}
+	}
+
+	return cies
+}
+
 func edgeDetect(i *image.Image, o *image.Image) {
 	w := (*i).Bounds().Size().X
 	h := (*i).Bounds().Size().Y
+	cies := makeCies(i)
 
 	for y := 0; y < h; y++ {
 		for x := 0; x < w; x++ {
@@ -364,11 +380,11 @@ func edgeDetect(i *image.Image, o *image.Image) {
 				//lightness = cie((*i).At(x, y))
 				lightness = 0
 			} else {
-				lightness = cie((*i).At(x, y))*4.0 -
-					cie((*i).At(x, y-1)) -
-					cie((*i).At(x-1, y)) -
-					cie((*i).At(x+1, y)) -
-					cie((*i).At(x, y+1))
+				lightness = cies[y*w+x]*4.0 -
+					cies[x+(y-1)*w] -
+					cies[x-1+y*w] -
+					cies[x+1+y*w] -
+					cies[x+(y+1)*w]
 			}
 
 			nc := color.RGBA{0, uint8(bounds(lightness)), 0, 255}
