@@ -29,7 +29,6 @@ import (
 	"github.com/muesli/smartcrop"
 	"fmt"
 	"image"
-	_ "image/jpeg"
 	_ "image/png"
 	"os"
 )
@@ -38,15 +37,8 @@ func main() {
 	fi, _ := os.Open("test.png")
 	defer fi.Close()
 
-	img, _, err := image.Decode(fi)
-	if err != nil {
-		panic(err)
-	}
-
-	topCrop, err := smartcrop.SmartCrop(&img, 250, 250)
-	if err != nil {
-		panic(err)
-	}
+	img, _, _ := image.Decode(fi)
+	topCrop, _ := smartcrop.SmartCrop(&img, 250, 250)
 	fmt.Printf("Top crop: %+v\n", topCrop)
 }
 ```
