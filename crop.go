@@ -41,17 +41,22 @@ import (
 	"os"
 	"time"
 
+	"code.google.com/p/draw2d/draw2d"
+	"github.com/lazywei/go-opencv/opencv"
 	"github.com/nfnt/resize"
 )
 
 var skinColor = [3]float64{0.78, 0.57, 0.44}
 
 const (
-	detailWeight            = 0.2
-	skinBias                = 0.01
-	skinBrightnessMin       = 0.2
-	skinBrightnessMax       = 1.0
-	skinThreshold           = 0.8
+	detailWeight = 0.2
+	//skinBias          = 0.01
+	useFaceDetection  = true // if true, opencv face detection is used instead of skin detection.
+	skinBias          = 0.9
+	skinBrightnessMin = 0.2
+	skinBrightnessMax = 1.0
+	skinThreshold     = 0.8
+	//skinWeight              = 1.8
 	skinWeight              = 1.8
 	saturationBrightnessMin = 0.05
 	saturationBrightnessMax = 0.9
@@ -69,7 +74,8 @@ const (
 	outsideImportance = -0.5
 	ruleOfThirds      = true
 	prescale          = true
-	debug             = false
+	prescaleMin       = 400.00
+	debug             = true
 )
 
 type Score struct {
@@ -102,7 +108,10 @@ func SmartCrop(img *image.Image, width, height int) (Crop, error) {
 
 	if prescale {
 
-		if f := 1.0 / scale / minScale; f < 1.0 {
+		//if f := 1.0 / scale / minScale; f < 1.0 {
+		//	prescalefactor = f
+		//}
+		if f := prescaleMin / math.Min(float64((*img).Bounds().Size().X), float64((*img).Bounds().Size().Y)); f < 1.0 {
 			prescalefactor = f
 		}
 		fmt.Println(prescalefactor)
@@ -184,11 +193,11 @@ func score(output *image.Image, crop *Crop) Score {
 	score := Score{}
 
 	// same loops but with downsampling
-	//for y := 0; y <= height-scoreDownSample; y += scoreDownSample {
-	//	for x := 0; x <= width-scoreDownSample; x += scoreDownSample {
+	for y := 0; y <= height-scoreDownSample; y += scoreDownSample {
+		for x := 0; x <= width-scoreDownSample; x += scoreDownSample {
 
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
+			//for y := 0; y < height; y++ {
+			//for x := 0; x < width; x++ {
 
 			r, g, b, _ := (*output).At(x, y).RGBA()
 
@@ -266,10 +275,18 @@ func analyse(img *image.Image, cropWidth, cropHeight, realMinScale float64) Crop
 	}
 
 	now = time.Now()
-	skinDetect(img, &o)
-	fmt.Println("Time elapsed skin:", time.Since(now))
-	if debug {
-		writeImageToPng(&o, "./smartcrop_skin.png")
+	if useFaceDetection {
+		faceDetect(img, &o)
+		fmt.Println("Time elapsed face:", time.Since(now))
+		if debug {
+			writeImageToPng(&o, "./smartcrop_face.png")
+		}
+	} else {
+		skinDetect(img, &o)
+		fmt.Println("Time elapsed skin:", time.Since(now))
+		if debug {
+			writeImageToPng(&o, "./smartcrop_skin.png")
+		}
 	}
 
 	now = time.Now()
@@ -391,6 +408,34 @@ func edgeDetect(i *image.Image, o *image.Image) {
 			(*o).(*image.RGBA).Set(x, y, nc)
 		}
 	}
+}
+
+func faceDetect(i *image.Image, o *image.Image) {
+
+	cvImage := opencv.FromImage(*i)
+	cascade := opencv.LoadHaarClassifierCascade("./haarcascade_frontalface_alt.xml")
+	faces := cascade.DetectObjects(cvImage)
+
+	gc := draw2d.NewGraphicContext((*o).(*image.RGBA))
+
+	if debug == true {
+		fmt.Println("Faces detected:", len(faces))
+	}
+
+	for _, face := range faces {
+		if debug == true {
+			fmt.Printf("Face: x: %d y: %d w: %d h: %d\n", face.X(), face.Y(), face.Width(), face.Height())
+		}
+		draw2d.Ellipse(
+			gc,
+			float64(face.X()+(face.Width()/2)),
+			float64(face.Y()+(face.Height()/2)),
+			float64(face.Width()/2),
+			float64(face.Height())/2)
+		gc.SetFillColor(color.RGBA{255, 0, 0, 255})
+		gc.Fill()
+	}
+
 }
 
 func skinDetect(i *image.Image, o *image.Image) {

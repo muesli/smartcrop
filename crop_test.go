@@ -91,7 +91,7 @@ func BenchmarkImageDir(b *testing.B) {
 
 	b.StopTimer()
 
-	files, err := ioutil.ReadDir("./samples")
+	files, err := ioutil.ReadDir("./samples/hatchet")
 	if err != nil {
 		b.Error(err)
 	}
@@ -100,7 +100,7 @@ func BenchmarkImageDir(b *testing.B) {
 	for _, file := range files {
 		if strings.Contains(file.Name(), ".jpg") {
 
-			fi, _ := os.Open("./samples/" + file.Name())
+			fi, _ := os.Open("./samples/hatchet/" + file.Name())
 			defer fi.Close()
 
 			img, _, err := image.Decode(fi)
