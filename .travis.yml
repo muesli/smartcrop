@@ -9,7 +9,7 @@ go:
 
 before_install:
   - sudo apt-get update -qq
-  - sudo apt-get install libopencv-dev
+  - sudo apt-get install libcv-dev libopencv-dev
 
 notifications:
   email:
