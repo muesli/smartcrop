@@ -50,6 +50,7 @@ var skinColor = [3]float64{0.78, 0.57, 0.44}
 
 const (
 	detailWeight = 0.2
+	faceDetectionHaarCascade = "/usr/share/opencv/haarcascades/haarcascade_frontalface_alt.xml"
 	//skinBias          = 0.01
 	useFaceDetection  = true // if true, opencv face detection is used instead of skin detection.
 	skinBias          = 0.9
@@ -411,7 +412,12 @@ func edgeDetect(i *image.Image, o *image.Image) {
 func faceDetect(i *image.Image, o *image.Image) {
 
 	cvImage := opencv.FromImage(*i)
-	cascade := opencv.LoadHaarClassifierCascade("./haarcascade_frontalface_alt.xml")
+	_, err := os.Stat(faceDetectionHaarCascade)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	cascade := opencv.LoadHaarClassifierCascade(faceDetectionHaarCascade)
 	faces := cascade.DetectObjects(cvImage)
 
 	gc := draw2d.NewGraphicContext((*o).(*image.RGBA))
