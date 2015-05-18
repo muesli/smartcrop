@@ -8,8 +8,9 @@ go:
   - tip
 
 before_install:
+  - sudo add-apt-repository -y ppa:kubuntu-ppa/backports 
   - sudo apt-get update -qq
-  - sudo apt-get install libcv-dev libhighgui-dev libopencv-photo-dev libopencv-imgproc-dev
+  - sudo apt-get install libcv-dev libopencv-dev libopencv-contrib-dev libhighgui-dev libopencv-photo-dev libopencv-imgproc-dev libopencv-stitching-dev libopencv-superres-dev libopencv-ts-dev libopencv-videostab-dev 
 
 notifications:
   email:
