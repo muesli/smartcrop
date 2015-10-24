@@ -12,7 +12,20 @@ Image: [https://www.flickr.com/photos/usfwspacific/8182486789](https://www.flick
 
 Make sure you have a working Go environment. See the [install instructions](http://golang.org/doc/install.html).
 
-To install smartcrop, simply run:
+Additionally you need to have opencv installed. 
+
+You can install it on Mac OS X using
+```
+brew tap homebrew/science
+brew install opencv
+```
+
+On linux you need to have following packages installed:
+```
+libcv-dev libopencv-dev libopencv-contrib-dev libhighgui-dev libopencv-photo-dev libopencv-imgproc-dev libopencv-stitching-dev libopencv-superres-dev libopencv-ts-dev libopencv-videostab-dev 
+```
+
+Now you can install smartcrop, simply run:
 
     go get github.com/muesli/smartcrop
 
