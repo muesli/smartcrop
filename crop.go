@@ -34,8 +34,6 @@ import (
 	"errors"
 	"image"
 	"image/color"
-	"image/jpeg"
-	"image/png"
 	"log"
 	"math"
 	"os"
@@ -77,7 +75,6 @@ const (
 	ruleOfThirds      = true
 	prescale          = true
 	prescaleMin       = 400.00
-	debug             = true
 )
 
 // Score contains values that classify matches
@@ -139,7 +136,7 @@ func (o openCVAnalyzer) FindBestCrop(img image.Image, width, height int) (Crop, 
 		lowimg = img
 	}
 
-	if debug {
+	if o.cropSettings.DebugMode {
 		writeImageToPng(&lowimg, "./smartcrop_prescale.png")
 	}
 
@@ -149,7 +146,7 @@ func (o openCVAnalyzer) FindBestCrop(img image.Image, width, height int) (Crop, 
 	log.Printf("original resolution: %dx%d\n", img.Bounds().Size().X, img.Bounds().Size().Y)
 	log.Printf("scale: %f, cropw: %f, croph: %f, minscale: %f\n", scale, cropWidth, cropHeight, realMinScale)
 
-	topCrop, err := analyse(lowimg, cropWidth, cropHeight, realMinScale)
+	topCrop, err := analyse(o.cropSettings, lowimg, cropWidth, cropHeight, realMinScale)
 	if err != nil {
 		return topCrop, err
 	}
@@ -169,6 +166,7 @@ func (o openCVAnalyzer) FindBestCrop(img image.Image, width, height int) (Crop, 
 type CropSettings struct {
 	FaceDetectionHaarCascadeFilepath string
 	InterpolationType                resize.InterpolationFunction
+	DebugMode                        bool
 }
 
 //NewAnalyzer returns a new analyzer with default settings
@@ -176,6 +174,7 @@ func NewAnalyzer() Analyzer {
 	cropSettings := CropSettings{
 		FaceDetectionHaarCascadeFilepath: faceDetectionHaarCascade,
 		InterpolationType:                resize.Bicubic,
+		DebugMode:                        false,
 	}
 
 	return &openCVAnalyzer{cropSettings: cropSettings}
@@ -263,32 +262,6 @@ func score(output *image.Image, crop *Crop) Score {
 	return score
 }
 
-func debugOutput(img *image.Image, debugType string) {
-	if debug {
-		writeImageToPng(img, "./smartcrop_"+debugType+".png")
-	}
-}
-
-func writeImageToJpeg(img *image.Image, name string) {
-	fso, err := os.Create(name)
-	if err != nil {
-		panic(err)
-	}
-	defer fso.Close()
-
-	jpeg.Encode(fso, (*img), &jpeg.Options{Quality: 100})
-}
-
-func writeImageToPng(img *image.Image, name string) {
-	fso, err := os.Create(name)
-	if err != nil {
-		panic(err)
-	}
-	defer fso.Close()
-
-	png.Encode(fso, (*img))
-}
-
 func drawDebugCrop(topCrop *Crop, o *image.Image) {
 	w := (*o).Bounds().Size().X
 	h := (*o).Bounds().Size().Y
@@ -315,34 +288,34 @@ func drawDebugCrop(topCrop *Crop, o *image.Image) {
 	}
 }
 
-func analyse(img image.Image, cropWidth, cropHeight, realMinScale float64) (Crop, error) {
+func analyse(settings CropSettings, img image.Image, cropWidth, cropHeight, realMinScale float64) (Crop, error) {
 	o := image.Image(image.NewRGBA(img.Bounds()))
 
 	now := time.Now()
 	edgeDetect(img, o)
 	log.Println("Time elapsed edge:", time.Since(now))
-	debugOutput(&o, "edge")
+	debugOutput(settings.DebugMode, &o, "edge")
 
 	now = time.Now()
 	if useFaceDetection {
-		err := faceDetect(img, o)
+		err := faceDetect(settings.DebugMode, img, o)
 
 		if err != nil {
 			return Crop{}, err
 		}
 
 		log.Println("Time elapsed face:", time.Since(now))
-		debugOutput(&o, "face")
+		debugOutput(settings.DebugMode, &o, "face")
 	} else {
 		skinDetect(img, o)
 		log.Println("Time elapsed skin:", time.Since(now))
-		debugOutput(&o, "skin")
+		debugOutput(settings.DebugMode, &o, "skin")
 	}
 
 	now = time.Now()
 	saturationDetect(img, o)
 	log.Println("Time elapsed sat:", time.Since(now))
-	debugOutput(&o, "saturation")
+	debugOutput(settings.DebugMode, &o, "saturation")
 
 	now = time.Now()
 	var topCrop Crop
@@ -362,10 +335,10 @@ func analyse(img image.Image, cropWidth, cropHeight, realMinScale float64) (Crop
 	}
 	log.Println("Time elapsed score:", time.Since(now))
 
-	if debug {
+	if settings.DebugMode {
 		drawDebugCrop(&topCrop, &o)
+		debugOutput(true, &o, "final")
 	}
-	debugOutput(&o, "final")
 
 	return topCrop, nil
 }
@@ -458,7 +431,7 @@ func edgeDetect(i image.Image, o image.Image) {
 	}
 }
 
-func faceDetect(i image.Image, o image.Image) error {
+func faceDetect(debug bool, i image.Image, o image.Image) error {
 
 	cvImage := opencv.FromImage(i)
 	_, err := os.Stat(faceDetectionHaarCascade)
