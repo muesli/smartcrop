@@ -347,7 +347,7 @@ func analyse(img image.Image, cropWidth, cropHeight, realMinScale float64) (Crop
 	now = time.Now()
 	var topCrop Crop
 	topScore := -1.0
-	cs := crops(&o, cropWidth, cropHeight, realMinScale)
+	cs := crops(o, cropWidth, cropHeight, realMinScale)
 	log.Println("Time elapsed crops:", time.Since(now), len(cs))
 
 	now = time.Now()
@@ -536,10 +536,10 @@ func saturationDetect(i image.Image, o image.Image) {
 	}
 }
 
-func crops(i *image.Image, cropWidth, cropHeight, realMinScale float64) []Crop {
+func crops(i image.Image, cropWidth, cropHeight, realMinScale float64) []Crop {
 	res := []Crop{}
-	width := (*i).Bounds().Size().X
-	height := (*i).Bounds().Size().Y
+	width := i.Bounds().Size().X
+	height := i.Bounds().Size().Y
 
 	minDimension := math.Min(float64(width), float64(height))
 	var cropW, cropH float64
