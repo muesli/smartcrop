@@ -49,7 +49,7 @@ var skinColor = [3]float64{0.78, 0.57, 0.44}
 
 const (
 	detailWeight             = 0.2
-	faceDetectionHaarCascade = "./files/haarcascade_frontalface_alt.xml"
+	faceDetectionHaarCascade = "/usr/share/opencv/haarcascades/haarcascade_frontalface_alt.xml"
 	//skinBias          = 0.01
 	useFaceDetection  = true // if true, opencv face detection is used instead of skin detection.
 	skinBias          = 0.9
@@ -164,6 +164,7 @@ func (o openCVAnalyzer) FindBestCrop(img image.Image, width, height int) (Crop, 
 //CropSettings contains options to
 //change cropping behaviour
 type CropSettings struct {
+	FaceDetection                    bool
 	FaceDetectionHaarCascadeFilepath string
 	InterpolationType                resize.InterpolationFunction
 	DebugMode                        bool
@@ -172,6 +173,7 @@ type CropSettings struct {
 //NewAnalyzer returns a new analyzer with default settings
 func NewAnalyzer() Analyzer {
 	cropSettings := CropSettings{
+		FaceDetection:                    useFaceDetection,
 		FaceDetectionHaarCascadeFilepath: faceDetectionHaarCascade,
 		InterpolationType:                resize.Bicubic,
 		DebugMode:                        false,
@@ -297,8 +299,8 @@ func analyse(settings CropSettings, img image.Image, cropWidth, cropHeight, real
 	debugOutput(settings.DebugMode, &o, "edge")
 
 	now = time.Now()
-	if useFaceDetection {
-		err := faceDetect(settings.DebugMode, img, o)
+	if settings.FaceDetection {
+		err := faceDetect(settings, img, o)
 
 		if err != nil {
 			return Crop{}, err
@@ -431,24 +433,24 @@ func edgeDetect(i image.Image, o image.Image) {
 	}
 }
 
-func faceDetect(debug bool, i image.Image, o image.Image) error {
+func faceDetect(settings CropSettings, i image.Image, o image.Image) error {
 
 	cvImage := opencv.FromImage(i)
-	_, err := os.Stat(faceDetectionHaarCascade)
+	_, err := os.Stat(settings.FaceDetectionHaarCascadeFilepath)
 	if err != nil {
 		return err
 	}
-	cascade := opencv.LoadHaarClassifierCascade(faceDetectionHaarCascade)
+	cascade := opencv.LoadHaarClassifierCascade(settings.FaceDetectionHaarCascadeFilepath)
 	faces := cascade.DetectObjects(cvImage)
 
 	gc := draw2dimg.NewGraphicContext((o).(*image.RGBA))
 
-	if debug == true {
+	if settings.DebugMode == true {
 		log.Println("Faces detected:", len(faces))
 	}
 
 	for _, face := range faces {
-		if debug == true {
+		if settings.DebugMode == true {
 			log.Printf("Face: x: %d y: %d w: %d h: %d\n", face.X(), face.Y(), face.Width(), face.Height())
 		}
 		draw2dkit.Ellipse(
