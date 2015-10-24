@@ -25,7 +25,7 @@
  */
 
 /*
-package smartcrop implements a content aware image cropping library based on
+Package smartcrop implements a content aware image cropping library based on
 Jonas Wagner's smartcrop.js https://github.com/jwagner/smartcrop.js
 */
 package smartcrop
@@ -37,6 +37,7 @@ import (
 	"image/color"
 	"image/jpeg"
 	"image/png"
+	"log"
 	"math"
 	"os"
 	"time"
@@ -80,6 +81,7 @@ const (
 	debug             = true
 )
 
+// Score contains values that classify matches
 type Score struct {
 	Detail     float64
 	Saturation float64
@@ -87,6 +89,7 @@ type Score struct {
 	Total      float64
 }
 
+// Crop contains results
 type Crop struct {
 	X      int
 	Y      int
@@ -97,12 +100,12 @@ type Crop struct {
 
 // SmartCrop applies the smartcrop algorithms on the the given image and returns
 // the top crop or an error if somthing went wrong.
-func SmartCrop(img *image.Image, width, height int) (Crop, error) {
+func SmartCrop(img image.Image, width, height int) (Crop, error) {
 	if width == 0 && height == 0 {
 		return Crop{}, errors.New("Expect either a height or width")
 	}
 
-	scale := math.Min(float64((*img).Bounds().Size().X)/float64(width), float64((*img).Bounds().Size().Y)/float64(height))
+	scale := math.Min(float64(img.Bounds().Size().X)/float64(width), float64(img.Bounds().Size().Y)/float64(height))
 
 	// resize image for faster processing
 	var lowimg image.Image
@@ -113,19 +116,19 @@ func SmartCrop(img *image.Image, width, height int) (Crop, error) {
 		//if f := 1.0 / scale / minScale; f < 1.0 {
 		//	prescalefactor = f
 		//}
-		if f := prescaleMin / math.Min(float64((*img).Bounds().Size().X), float64((*img).Bounds().Size().Y)); f < 1.0 {
+		if f := prescaleMin / math.Min(float64(img.Bounds().Size().X), float64(img.Bounds().Size().Y)); f < 1.0 {
 			prescalefactor = f
 		}
-		fmt.Println(prescalefactor)
+		log.Println(prescalefactor)
 
 		lowimg = resize.Resize(
-			uint(float64((*img).Bounds().Size().X)*prescalefactor),
+			uint(float64(img.Bounds().Size().X)*prescalefactor),
 			0,
-			*img,
+			img,
 			resize.Bicubic) // TODO let the lib user define the interpolation.
 
 	} else {
-		lowimg = *img
+		lowimg = img
 	}
 
 	if debug {
@@ -135,10 +138,10 @@ func SmartCrop(img *image.Image, width, height int) (Crop, error) {
 	cropWidth, cropHeight := chop(float64(width)*scale*prescalefactor), chop(float64(height)*scale*prescalefactor)
 	realMinScale := math.Min(maxScale, math.Max(1.0/scale, minScale))
 
-	fmt.Printf("original resolution: %dx%d\n", (*img).Bounds().Size().X, (*img).Bounds().Size().Y)
-	fmt.Printf("scale: %f, cropw: %f, croph: %f, minscale: %f\n", scale, cropWidth, cropHeight, realMinScale)
+	log.Printf("original resolution: %dx%d\n", img.Bounds().Size().X, img.Bounds().Size().Y)
+	log.Printf("scale: %f, cropw: %f, croph: %f, minscale: %f\n", scale, cropWidth, cropHeight, realMinScale)
 
-	topCrop := analyse(&lowimg, cropWidth, cropHeight, realMinScale)
+	topCrop := analyse(lowimg, cropWidth, cropHeight, realMinScale)
 
 	if prescale == true {
 		topCrop.X = int(chop(float64(topCrop.X) / prescalefactor))
@@ -272,27 +275,27 @@ func drawDebugCrop(topCrop *Crop, o *image.Image) {
 	}
 }
 
-func analyse(img *image.Image, cropWidth, cropHeight, realMinScale float64) Crop {
-	o := image.Image(image.NewRGBA((*img).Bounds()))
+func analyse(img image.Image, cropWidth, cropHeight, realMinScale float64) Crop {
+	o := image.Image(image.NewRGBA(img.Bounds()))
 
 	now := time.Now()
-	edgeDetect(img, &o)
+	edgeDetect(img, o)
 	fmt.Println("Time elapsed edge:", time.Since(now))
 	debugOutput(&o, "edge")
 
 	now = time.Now()
 	if useFaceDetection {
-		faceDetect(img, &o)
+		faceDetect(img, o)
 		fmt.Println("Time elapsed face:", time.Since(now))
 		debugOutput(&o, "face")
 	} else {
-		skinDetect(img, &o)
+		skinDetect(img, o)
 		fmt.Println("Time elapsed skin:", time.Since(now))
 		debugOutput(&o, "skin")
 	}
 
 	now = time.Now()
-	saturationDetect(img, &o)
+	saturationDetect(img, o)
 	fmt.Println("Time elapsed sat:", time.Since(now))
 	debugOutput(&o, "saturation")
 
@@ -340,9 +343,9 @@ func saturation(c color.Color) float64 {
 
 	if l > 0.5 {
 		return d / (2.0 - maximum - minimum)
-	} else {
-		return d / (maximum + minimum)
 	}
+
+	return d / (maximum + minimum)
 }
 
 func cie(c color.Color) float64 {
@@ -369,14 +372,14 @@ func skinCol(c color.Color) float64 {
 	return 1.0 - d
 }
 
-func makeCies(img *image.Image) []float64 {
-	w := (*img).Bounds().Size().X
-	h := (*img).Bounds().Size().Y
+func makeCies(img image.Image) []float64 {
+	w := img.Bounds().Size().X
+	h := img.Bounds().Size().Y
 	cies := make([]float64, h*w, h*w)
 	i := 0
 	for y := 0; y < h; y++ {
 		for x := 0; x < w; x++ {
-			cies[i] = cie((*img).At(x, y))
+			cies[i] = cie(img.At(x, y))
 			i++
 		}
 	}
@@ -384,9 +387,9 @@ func makeCies(img *image.Image) []float64 {
 	return cies
 }
 
-func edgeDetect(i *image.Image, o *image.Image) {
-	w := (*i).Bounds().Size().X
-	h := (*i).Bounds().Size().Y
+func edgeDetect(i image.Image, o image.Image) {
+	w := i.Bounds().Size().X
+	h := i.Bounds().Size().Y
 	cies := makeCies(i)
 
 	for y := 0; y < h; y++ {
@@ -405,14 +408,14 @@ func edgeDetect(i *image.Image, o *image.Image) {
 			}
 
 			nc := color.RGBA{0, uint8(bounds(lightness)), 0, 255}
-			(*o).(*image.RGBA).Set(x, y, nc)
+			o.(*image.RGBA).Set(x, y, nc)
 		}
 	}
 }
 
-func faceDetect(i *image.Image, o *image.Image) {
+func faceDetect(i image.Image, o image.Image) {
 
-	cvImage := opencv.FromImage(*i)
+	cvImage := opencv.FromImage(i)
 	_, err := os.Stat(faceDetectionHaarCascade)
 	if err != nil {
 		fmt.Println(err)
@@ -421,7 +424,7 @@ func faceDetect(i *image.Image, o *image.Image) {
 	cascade := opencv.LoadHaarClassifierCascade(faceDetectionHaarCascade)
 	faces := cascade.DetectObjects(cvImage)
 
-	gc := draw2dimg.NewGraphicContext((*o).(*image.RGBA))
+	gc := draw2dimg.NewGraphicContext((o).(*image.RGBA))
 
 	if debug == true {
 		fmt.Println("Faces detected:", len(faces))
@@ -443,47 +446,47 @@ func faceDetect(i *image.Image, o *image.Image) {
 
 }
 
-func skinDetect(i *image.Image, o *image.Image) {
-	w := (*i).Bounds().Size().X
-	h := (*i).Bounds().Size().Y
+func skinDetect(i image.Image, o image.Image) {
+	w := i.Bounds().Size().X
+	h := i.Bounds().Size().Y
 
 	for y := 0; y < h; y++ {
 		for x := 0; x < w; x++ {
-			lightness := cie((*i).At(x, y)) / 255.0
-			skin := skinCol((*i).At(x, y))
+			lightness := cie(i.At(x, y)) / 255.0
+			skin := skinCol(i.At(x, y))
 
 			if skin > skinThreshold && lightness >= skinBrightnessMin && lightness <= skinBrightnessMax {
 				r := (skin - skinThreshold) * (255.0 / (1.0 - skinThreshold))
-				_, g, b, _ := (*o).At(x, y).RGBA()
+				_, g, b, _ := o.At(x, y).RGBA()
 				nc := color.RGBA{uint8(bounds(r)), uint8(g >> 8), uint8(b >> 8), 255}
-				(*o).(*image.RGBA).Set(x, y, nc)
+				o.(*image.RGBA).Set(x, y, nc)
 			} else {
-				_, g, b, _ := (*o).At(x, y).RGBA()
+				_, g, b, _ := o.At(x, y).RGBA()
 				nc := color.RGBA{0, uint8(g >> 8), uint8(b >> 8), 255}
-				(*o).(*image.RGBA).Set(x, y, nc)
+				o.(*image.RGBA).Set(x, y, nc)
 			}
 		}
 	}
 }
 
-func saturationDetect(i *image.Image, o *image.Image) {
-	w := (*i).Bounds().Size().X
-	h := (*i).Bounds().Size().Y
+func saturationDetect(i image.Image, o image.Image) {
+	w := i.Bounds().Size().X
+	h := i.Bounds().Size().Y
 
 	for y := 0; y < h; y++ {
 		for x := 0; x < w; x++ {
-			lightness := cie((*i).At(x, y)) / 255.0
-			saturation := saturation((*i).At(x, y))
+			lightness := cie(i.At(x, y)) / 255.0
+			saturation := saturation(i.At(x, y))
 
 			if saturation > saturationThreshold && lightness >= saturationBrightnessMin && lightness <= saturationBrightnessMax {
 				b := (saturation - saturationThreshold) * (255.0 / (1.0 - saturationThreshold))
-				r, g, _, _ := (*o).At(x, y).RGBA()
+				r, g, _, _ := o.At(x, y).RGBA()
 				nc := color.RGBA{uint8(r >> 8), uint8(g >> 8), uint8(bounds(b)), 255}
-				(*o).(*image.RGBA).Set(x, y, nc)
+				o.(*image.RGBA).Set(x, y, nc)
 			} else {
-				r, g, _, _ := (*o).At(x, y).RGBA()
+				r, g, _, _ := o.At(x, y).RGBA()
 				nc := color.RGBA{uint8(r >> 8), uint8(g >> 8), 0, 255}
-				(*o).(*image.RGBA).Set(x, y, nc)
+				o.(*image.RGBA).Set(x, y, nc)
 			}
 		}
 	}
