@@ -32,7 +32,6 @@ package smartcrop
 
 import (
 	"errors"
-	"fmt"
 	"image"
 	"image/color"
 	"image/jpeg"
@@ -111,28 +110,6 @@ type openCVAnalyzer struct {
 }
 
 func (o openCVAnalyzer) FindBestCrop(img image.Image, width, height int) (Crop, error) {
-	return SmartCrop(img, width, height)
-}
-
-//CropSettings contains options to
-//change cropping behaviour
-type CropSettings struct {
-	FaceDetectionHaarCascadeFilepath string
-}
-
-//NewAnalyzer returns a new analyzer with default settings
-func NewAnalyzer() Analyzer {
-	return &openCVAnalyzer{cropSettings: CropSettings{FaceDetectionHaarCascadeFilepath: faceDetectionHaarCascade}}
-}
-
-//NewAnalyzerWithCropSettings returns a new analyzer with the given settings
-func NewAnalyzerWithCropSettings(cropSettings CropSettings) Analyzer {
-	return &openCVAnalyzer{cropSettings: cropSettings}
-}
-
-// SmartCrop applies the smartcrop algorithms on the the given image and returns
-// the top crop or an error if somthing went wrong.
-func SmartCrop(img image.Image, width, height int) (Crop, error) {
 	if width == 0 && height == 0 {
 		return Crop{}, errors.New("Expect either a height or width")
 	}
@@ -157,8 +134,7 @@ func SmartCrop(img image.Image, width, height int) (Crop, error) {
 			uint(float64(img.Bounds().Size().X)*prescalefactor),
 			0,
 			img,
-			resize.Bicubic) // TODO let the lib user define the interpolation.
-
+			o.cropSettings.InterpolationType)
 	} else {
 		lowimg = img
 	}
@@ -173,7 +149,10 @@ func SmartCrop(img image.Image, width, height int) (Crop, error) {
 	log.Printf("original resolution: %dx%d\n", img.Bounds().Size().X, img.Bounds().Size().Y)
 	log.Printf("scale: %f, cropw: %f, croph: %f, minscale: %f\n", scale, cropWidth, cropHeight, realMinScale)
 
-	topCrop := analyse(lowimg, cropWidth, cropHeight, realMinScale)
+	topCrop, err := analyse(lowimg, cropWidth, cropHeight, realMinScale)
+	if err != nil {
+		return topCrop, err
+	}
 
 	if prescale == true {
 		topCrop.X = int(chop(float64(topCrop.X) / prescalefactor))
@@ -183,6 +162,35 @@ func SmartCrop(img image.Image, width, height int) (Crop, error) {
 	}
 
 	return topCrop, nil
+}
+
+//CropSettings contains options to
+//change cropping behaviour
+type CropSettings struct {
+	FaceDetectionHaarCascadeFilepath string
+	InterpolationType                resize.InterpolationFunction
+}
+
+//NewAnalyzer returns a new analyzer with default settings
+func NewAnalyzer() Analyzer {
+	cropSettings := CropSettings{
+		FaceDetectionHaarCascadeFilepath: faceDetectionHaarCascade,
+		InterpolationType:                resize.Bicubic,
+	}
+
+	return &openCVAnalyzer{cropSettings: cropSettings}
+}
+
+//NewAnalyzerWithCropSettings returns a new analyzer with the given settings
+func NewAnalyzerWithCropSettings(cropSettings CropSettings) Analyzer {
+	return &openCVAnalyzer{cropSettings: cropSettings}
+}
+
+// SmartCrop applies the smartcrop algorithms on the the given image and returns
+// the top crop or an error if somthing went wrong.
+func SmartCrop(img image.Image, width, height int) (Crop, error) {
+	analyzer := NewAnalyzer()
+	return analyzer.FindBestCrop(img, width, height)
 }
 
 func chop(x float64) float64 {
@@ -307,54 +315,59 @@ func drawDebugCrop(topCrop *Crop, o *image.Image) {
 	}
 }
 
-func analyse(img image.Image, cropWidth, cropHeight, realMinScale float64) Crop {
+func analyse(img image.Image, cropWidth, cropHeight, realMinScale float64) (Crop, error) {
 	o := image.Image(image.NewRGBA(img.Bounds()))
 
 	now := time.Now()
 	edgeDetect(img, o)
-	fmt.Println("Time elapsed edge:", time.Since(now))
+	log.Println("Time elapsed edge:", time.Since(now))
 	debugOutput(&o, "edge")
 
 	now = time.Now()
 	if useFaceDetection {
-		faceDetect(img, o)
-		fmt.Println("Time elapsed face:", time.Since(now))
+		err := faceDetect(img, o)
+
+		if err != nil {
+			return Crop{}, err
+		}
+
+		log.Println("Time elapsed face:", time.Since(now))
 		debugOutput(&o, "face")
 	} else {
 		skinDetect(img, o)
-		fmt.Println("Time elapsed skin:", time.Since(now))
+		log.Println("Time elapsed skin:", time.Since(now))
 		debugOutput(&o, "skin")
 	}
 
 	now = time.Now()
 	saturationDetect(img, o)
-	fmt.Println("Time elapsed sat:", time.Since(now))
+	log.Println("Time elapsed sat:", time.Since(now))
 	debugOutput(&o, "saturation")
 
 	now = time.Now()
 	var topCrop Crop
 	topScore := -1.0
 	cs := crops(&o, cropWidth, cropHeight, realMinScale)
-	fmt.Println("Time elapsed crops:", time.Since(now), len(cs))
+	log.Println("Time elapsed crops:", time.Since(now), len(cs))
 
 	now = time.Now()
 	for _, crop := range cs {
-		//		nowIn := time.Now()
+		nowIn := time.Now()
 		crop.Score = score(&o, &crop)
-		//		fmt.Println("Time elapsed single-score:", time.Since(nowIn))
+		log.Println("Time elapsed single-score:", time.Since(nowIn))
 		if crop.Score.Total > topScore {
 			topCrop = crop
 			topScore = crop.Score.Total
 		}
 	}
-	fmt.Println("Time elapsed score:", time.Since(now))
+	log.Println("Time elapsed score:", time.Since(now))
 
 	if debug {
 		drawDebugCrop(&topCrop, &o)
 	}
 	debugOutput(&o, "final")
 
-	return topCrop
+	return topCrop, nil
 }
 
 func saturation(c color.Color) float64 {
@@ -445,13 +458,12 @@ func edgeDetect(i image.Image, o image.Image) {
 	}
 }
 
-func faceDetect(i image.Image, o image.Image) {
+func faceDetect(i image.Image, o image.Image) error {
 
 	cvImage := opencv.FromImage(i)
 	_, err := os.Stat(faceDetectionHaarCascade)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		return err
 	}
 	cascade := opencv.LoadHaarClassifierCascade(faceDetectionHaarCascade)
 	faces := cascade.DetectObjects(cvImage)
@@ -459,12 +471,12 @@ func faceDetect(i image.Image, o image.Image) {
 	gc := draw2dimg.NewGraphicContext((o).(*image.RGBA))
 
 	if debug == true {
-		fmt.Println("Faces detected:", len(faces))
+		log.Println("Faces detected:", len(faces))
 	}
 
 	for _, face := range faces {
 		if debug == true {
-			fmt.Printf("Face: x: %d y: %d w: %d h: %d\n", face.X(), face.Y(), face.Width(), face.Height())
+			log.Printf("Face: x: %d y: %d w: %d h: %d\n", face.X(), face.Y(), face.Width(), face.Height())
 		}
 		draw2dkit.Ellipse(
 			gc,
@@ -475,7 +487,7 @@ func faceDetect(i image.Image, o image.Image) {
 		gc.SetFillColor(color.RGBA{255, 0, 0, 255})
 		gc.Fill()
 	}
-
+	return nil
 }
 
 func skinDetect(i image.Image, o image.Image) {
