@@ -48,15 +48,11 @@ import (
 var skinColor = [3]float64{0.78, 0.57, 0.44}
 
 const (
-	detailWeight             = 0.2
-	faceDetectionHaarCascade = "/usr/share/opencv/haarcascades/haarcascade_frontalface_alt.xml"
-	//skinBias          = 0.01
-	useFaceDetection  = true // if true, opencv face detection is used instead of skin detection.
-	skinBias          = 0.9
-	skinBrightnessMin = 0.2
-	skinBrightnessMax = 1.0
-	skinThreshold     = 0.8
-	//skinWeight              = 1.8
+	detailWeight            = 0.2
+	skinBias                = 0.9
+	skinBrightnessMin       = 0.2
+	skinBrightnessMax       = 1.0
+	skinThreshold           = 0.8
 	skinWeight              = 1.8
 	saturationBrightnessMin = 0.05
 	saturationBrightnessMax = 0.9
@@ -94,6 +90,15 @@ type Crop struct {
 	Score  Score
 }
 
+//CropSettings contains options to
+//change cropping behaviour
+type CropSettings struct {
+	FaceDetection                    bool
+	FaceDetectionHaarCascadeFilepath string
+	InterpolationType                resize.InterpolationFunction
+	DebugMode                        bool
+}
+
 //Analyzer interface analyzes its struct
 //and returns the best possible crop with the given
 //width and height
@@ -104,6 +109,25 @@ type Analyzer interface {
 
 type openCVAnalyzer struct {
 	cropSettings CropSettings
+}
+
+//NewAnalyzer returns a new analyzer with default settings
+func NewAnalyzer() Analyzer {
+	faceDetectionHaarCascade := "/usr/share/opencv/haarcascades/haarcascade_frontalface_alt.xml"
+
+	cropSettings := CropSettings{
+		FaceDetection:                    true,
+		FaceDetectionHaarCascadeFilepath: faceDetectionHaarCascade,
+		InterpolationType:                resize.Bicubic,
+		DebugMode:                        false,
+	}
+
+	return &openCVAnalyzer{cropSettings: cropSettings}
+}
+
+//NewAnalyzerWithCropSettings returns a new analyzer with the given settings
+func NewAnalyzerWithCropSettings(cropSettings CropSettings) Analyzer {
+	return &openCVAnalyzer{cropSettings: cropSettings}
 }
 
 func (o openCVAnalyzer) FindBestCrop(img image.Image, width, height int) (Crop, error) {
@@ -159,32 +183,6 @@ func (o openCVAnalyzer) FindBestCrop(img image.Image, width, height int) (Crop, 
 	}
 
 	return topCrop, nil
-}
-
-//CropSettings contains options to
-//change cropping behaviour
-type CropSettings struct {
-	FaceDetection                    bool
-	FaceDetectionHaarCascadeFilepath string
-	InterpolationType                resize.InterpolationFunction
-	DebugMode                        bool
-}
-
-//NewAnalyzer returns a new analyzer with default settings
-func NewAnalyzer() Analyzer {
-	cropSettings := CropSettings{
-		FaceDetection:                    useFaceDetection,
-		FaceDetectionHaarCascadeFilepath: faceDetectionHaarCascade,
-		InterpolationType:                resize.Bicubic,
-		DebugMode:                        false,
-	}
-
-	return &openCVAnalyzer{cropSettings: cropSettings}
-}
-
-//NewAnalyzerWithCropSettings returns a new analyzer with the given settings
-func NewAnalyzerWithCropSettings(cropSettings CropSettings) Analyzer {
-	return &openCVAnalyzer{cropSettings: cropSettings}
 }
 
 // SmartCrop applies the smartcrop algorithms on the the given image and returns
