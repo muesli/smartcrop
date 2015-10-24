@@ -98,6 +98,38 @@ type Crop struct {
 	Score  Score
 }
 
+//Analyzer interface analyzes its struct
+//and returns the best possible crop with the given
+//width and height
+//returns an error if invalid
+type Analyzer interface {
+	FindBestCrop(img image.Image, width, height int) (Crop, error)
+}
+
+type openCVAnalyzer struct {
+	cropSettings CropSettings
+}
+
+func (o openCVAnalyzer) FindBestCrop(img image.Image, width, height int) (Crop, error) {
+	return SmartCrop(img, width, height)
+}
+
+//CropSettings contains options to
+//change cropping behaviour
+type CropSettings struct {
+	FaceDetectionHaarCascadeFilepath string
+}
+
+//NewAnalyzer returns a new analyzer with default settings
+func NewAnalyzer() Analyzer {
+	return &openCVAnalyzer{cropSettings: CropSettings{FaceDetectionHaarCascadeFilepath: faceDetectionHaarCascade}}
+}
+
+//NewAnalyzerWithCropSettings returns a new analyzer with the given settings
+func NewAnalyzerWithCropSettings(cropSettings CropSettings) Analyzer {
+	return &openCVAnalyzer{cropSettings: cropSettings}
+}
+
 // SmartCrop applies the smartcrop algorithms on the the given image and returns
 // the top crop or an error if somthing went wrong.
 func SmartCrop(img image.Image, width, height int) (Crop, error) {
