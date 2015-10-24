@@ -41,16 +41,17 @@ import (
 	"os"
 	"time"
 
-	"code.google.com/p/draw2d/draw2d"
 	"github.com/lazywei/go-opencv/opencv"
+	"github.com/llgcode/draw2d/draw2dimg"
+	"github.com/llgcode/draw2d/draw2dkit"
 	"github.com/nfnt/resize"
 )
 
 var skinColor = [3]float64{0.78, 0.57, 0.44}
 
 const (
-	detailWeight = 0.2
-	faceDetectionHaarCascade = "/usr/share/opencv/haarcascades/haarcascade_frontalface_alt.xml"
+	detailWeight             = 0.2
+	faceDetectionHaarCascade = "./files/haarcascade_frontalface_alt.xml"
 	//skinBias          = 0.01
 	useFaceDetection  = true // if true, opencv face detection is used instead of skin detection.
 	skinBias          = 0.9
@@ -420,7 +421,7 @@ func faceDetect(i *image.Image, o *image.Image) {
 	cascade := opencv.LoadHaarClassifierCascade(faceDetectionHaarCascade)
 	faces := cascade.DetectObjects(cvImage)
 
-	gc := draw2d.NewGraphicContext((*o).(*image.RGBA))
+	gc := draw2dimg.NewGraphicContext((*o).(*image.RGBA))
 
 	if debug == true {
 		fmt.Println("Faces detected:", len(faces))
@@ -430,7 +431,7 @@ func faceDetect(i *image.Image, o *image.Image) {
 		if debug == true {
 			fmt.Printf("Face: x: %d y: %d w: %d h: %d\n", face.X(), face.Y(), face.Width(), face.Height())
 		}
-		draw2d.Ellipse(
+		draw2dkit.Ellipse(
 			gc,
 			float64(face.X()+(face.Width()/2)),
 			float64(face.Y()+(face.Height()/2)),
