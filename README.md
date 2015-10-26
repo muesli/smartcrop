@@ -47,15 +47,48 @@ import (
 )
 
 func main() {
-	fi, _ := os.Open("test.png")
-	defer fi.Close()
+  fi,err := os.Open("test.png")
+  if err != nil {
+    log.Fatalf(err.Error())
+  }
 
-	img, _, _ := image.Decode(fi)
-	topCrop, _ := smartcrop.SmartCrop(&img, 250, 250)
+  defer fi.Close()
+
+  img, _, err := image.Decode(fi)
+  if err != nil {
+    log.Fatalf(err.Error())
+  }
+
+  analyzer := smartcrop.NewAnalyzer()
+	topCrop, _ := analyzer.FindBestCrop(img, 250, 250)
 	fmt.Printf("Top crop: %+v\n", topCrop)
 }
 ```
 
+With face detection:
+```go
+func main() {
+  fi,err := os.Open("test.png")
+  if err != nil {
+    log.Fatalf(err.Error())
+  }
+
+  defer fi.Close()
+
+  img, _, err := image.Decode(fi)
+  if err != nil {
+    log.Fatalf(err.Error())
+  }
+
+  settings := smartcrop.CropSettings{
+    FaceDetection:                    true,
+    FaceDetectionHaarCascadeFilepath: "./files/aarcascade_frontalface_alt.xml",
+  }
+  analyzer := smartcrop.NewAnalyzerWithCropSettings(settings)
+  topCrop, _ := analyzer.FindBestCrop(img, 250, 250)
+  fmt.Printf("Top crop: %+v\n", topCrop)
+}
+```
 Also see the test-cases in crop_test.go for further working examples.
 
 ## Development
