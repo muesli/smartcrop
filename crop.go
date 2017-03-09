@@ -34,10 +34,8 @@ import (
 	"errors"
 	"image"
 	"image/color"
-	"log"
 	"math"
 	"os"
-	"time"
 
 	"github.com/lazywei/go-opencv/opencv"
 	"github.com/llgcode/draw2d/draw2dimg"
@@ -149,7 +147,6 @@ func (o openCVAnalyzer) FindBestCrop(img image.Image, width, height int) (Crop, 
 		if f := prescaleMin / math.Min(float64(img.Bounds().Size().X), float64(img.Bounds().Size().Y)); f < 1.0 {
 			prescalefactor = f
 		}
-		log.Println(prescalefactor)
 
 		lowimg = resize.Resize(
 			uint(float64(img.Bounds().Size().X)*prescalefactor),
@@ -166,9 +163,6 @@ func (o openCVAnalyzer) FindBestCrop(img image.Image, width, height int) (Crop, 
 
 	cropWidth, cropHeight := chop(float64(width)*scale*prescalefactor), chop(float64(height)*scale*prescalefactor)
 	realMinScale := math.Min(maxScale, math.Max(1.0/scale, minScale))
-
-	log.Printf("original resolution: %dx%d\n", img.Bounds().Size().X, img.Bounds().Size().Y)
-	log.Printf("scale: %f, cropw: %f, croph: %f, minscale: %f\n", scale, cropWidth, cropHeight, realMinScale)
 
 	topCrop, err := analyse(o.cropSettings, lowimg, cropWidth, cropHeight, realMinScale)
 	if err != nil {
@@ -291,12 +285,9 @@ func drawDebugCrop(topCrop *Crop, o *image.Image) {
 func analyse(settings CropSettings, img image.Image, cropWidth, cropHeight, realMinScale float64) (Crop, error) {
 	o := image.Image(image.NewRGBA(img.Bounds()))
 
-	now := time.Now()
 	edgeDetect(img, o)
-	log.Println("Time elapsed edge:", time.Since(now))
 	debugOutput(settings.DebugMode, &o, "edge")
 
-	now = time.Now()
 	if settings.FaceDetection {
 		err := faceDetect(settings, img, o)
 
@@ -304,36 +295,26 @@ func analyse(settings CropSettings, img image.Image, cropWidth, cropHeight, real
 			return Crop{}, err
 		}
 
-		log.Println("Time elapsed face:", time.Since(now))
 		debugOutput(settings.DebugMode, &o, "face")
 	} else {
 		skinDetect(img, o)
-		log.Println("Time elapsed skin:", time.Since(now))
 		debugOutput(settings.DebugMode, &o, "skin")
 	}
 
-	now = time.Now()
 	saturationDetect(img, o)
-	log.Println("Time elapsed sat:", time.Since(now))
 	debugOutput(settings.DebugMode, &o, "saturation")
 
-	now = time.Now()
 	var topCrop Crop
 	topScore := -1.0
 	cs := crops(o, cropWidth, cropHeight, realMinScale)
-	log.Println("Time elapsed crops:", time.Since(now), len(cs))
 
-	now = time.Now()
 	for _, crop := range cs {
-		nowIn := time.Now()
 		crop.Score = score(&o, &crop)
-		log.Println("Time elapsed single-score:", time.Since(nowIn))
 		if crop.Score.Total > topScore {
 			topCrop = crop
 			topScore = crop.Score.Total
 		}
 	}
-	log.Println("Time elapsed score:", time.Since(now))
 
 	if settings.DebugMode {
 		drawDebugCrop(&topCrop, &o)
@@ -433,24 +414,19 @@ func edgeDetect(i image.Image, o image.Image) {
 
 func faceDetect(settings CropSettings, i image.Image, o image.Image) error {
 
-	cvImage := opencv.FromImage(i)
 	_, err := os.Stat(settings.FaceDetectionHaarCascadeFilepath)
 	if err != nil {
 		return err
 	}
 	cascade := opencv.LoadHaarClassifierCascade(settings.FaceDetectionHaarCascadeFilepath)
+	defer cascade.Release()
+	cvImage := opencv.FromImage(i)
+	defer cvImage.Release()
 	faces := cascade.DetectObjects(cvImage)
 
 	gc := draw2dimg.NewGraphicContext((o).(*image.RGBA))
 
-	if settings.DebugMode == true {
-		log.Println("Faces detected:", len(faces))
-	}
-
 	for _, face := range faces {
-		if settings.DebugMode == true {
-			log.Printf("Face: x: %d y: %d w: %d h: %d\n", face.X(), face.Y(), face.Width(), face.Height())
-		}
 		draw2dkit.Ellipse(
 			gc,
 			float64(face.X()+(face.Width()/2)),
