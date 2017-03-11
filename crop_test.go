@@ -55,7 +55,7 @@ func TestCrop(t *testing.T) {
 		t.Error(err)
 	}
 
-	topCrop, err := SmartCrop(img, 250, 0)
+	topCrop, _, err := SmartCrop(img, 250, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -80,10 +80,11 @@ func BenchmarkEdge(b *testing.B) {
 	if err != nil {
 		b.Error(err)
 	}
+	analyze := openCVAnalyzer{}
 	o := image.Image(image.NewRGBA(img.Bounds()))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		edgeDetect(img, o)
+		analyze.edgeDetect(img, o)
 	}
 }
 
@@ -108,7 +109,7 @@ func BenchmarkImageDir(b *testing.B) {
 				b.Error(err)
 			}
 
-			topCrop, err := SmartCrop(img, 900, 500)
+			topCrop, _, err := SmartCrop(img, 900, 500)
 			if err != nil {
 				b.Error(err)
 			}
