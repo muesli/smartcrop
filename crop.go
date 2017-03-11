@@ -433,12 +433,16 @@ func edgeDetect(i image.Image, o image.Image) {
 
 func faceDetect(settings CropSettings, i image.Image, o image.Image) error {
 
-	cvImage := opencv.FromImage(i)
 	_, err := os.Stat(settings.FaceDetectionHaarCascadeFilepath)
 	if err != nil {
 		return err
 	}
 	cascade := opencv.LoadHaarClassifierCascade(settings.FaceDetectionHaarCascadeFilepath)
+	defer cascade.Release()
+
+	cvImage := opencv.FromImage(i)
+	defer cvImage.Release()
+
 	faces := cascade.DetectObjects(cvImage)
 
 	gc := draw2dimg.NewGraphicContext((o).(*image.RGBA))
