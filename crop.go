@@ -32,12 +32,13 @@ package smartcrop
 
 import (
 	"errors"
+	"fmt"
 	"image"
 	"image/color"
 	"log"
 	"math"
 	"os"
-	"time"
+	"sync"
 
 	"github.com/lazywei/go-opencv/opencv"
 	"github.com/llgcode/draw2d/draw2dimg"
@@ -87,128 +88,9 @@ type Crop struct {
 	Y      int
 	Width  int
 	Height int
-	Score  Score
 }
 
-//CropSettings contains options to
-//change cropping behaviour
-type CropSettings struct {
-	FaceDetection                    bool
-	FaceDetectionHaarCascadeFilepath string
-	InterpolationType                resize.InterpolationFunction
-	DebugMode                        bool
-}
-
-//Analyzer interface analyzes its struct
-//and returns the best possible crop with the given
-//width and height
-//returns an error if invalid
-type Analyzer interface {
-	FindBestCrop(img image.Image, width, height int) (Crop, error)
-}
-
-type openCVAnalyzer struct {
-	cropSettings CropSettings
-}
-
-//NewAnalyzer returns a new analyzer with default settings
-func NewAnalyzer() Analyzer {
-	faceDetectionHaarCascade := "/usr/share/opencv/haarcascades/haarcascade_frontalface_alt.xml"
-
-	cropSettings := CropSettings{
-		FaceDetection:                    true,
-		FaceDetectionHaarCascadeFilepath: faceDetectionHaarCascade,
-		InterpolationType:                resize.Bicubic,
-		DebugMode:                        false,
-	}
-
-	return &openCVAnalyzer{cropSettings: cropSettings}
-}
-
-//NewAnalyzerWithCropSettings returns a new analyzer with the given settings
-func NewAnalyzerWithCropSettings(cropSettings CropSettings) Analyzer {
-	return &openCVAnalyzer{cropSettings: cropSettings}
-}
-
-func (o openCVAnalyzer) FindBestCrop(img image.Image, width, height int) (Crop, error) {
-	if width == 0 && height == 0 {
-		return Crop{}, errors.New("Expect either a height or width")
-	}
-
-	scale := math.Min(float64(img.Bounds().Size().X)/float64(width), float64(img.Bounds().Size().Y)/float64(height))
-
-	// resize image for faster processing
-	var lowimg image.Image
-	var prescalefactor = 1.0
-
-	if prescale {
-
-		//if f := 1.0 / scale / minScale; f < 1.0 {
-		//	prescalefactor = f
-		//}
-		if f := prescaleMin / math.Min(float64(img.Bounds().Size().X), float64(img.Bounds().Size().Y)); f < 1.0 {
-			prescalefactor = f
-		}
-		log.Println(prescalefactor)
-
-		lowimg = resize.Resize(
-			uint(float64(img.Bounds().Size().X)*prescalefactor),
-			0,
-			img,
-			o.cropSettings.InterpolationType)
-	} else {
-		lowimg = img
-	}
-
-	if o.cropSettings.DebugMode {
-		writeImageToPng(&lowimg, "./smartcrop_prescale.png")
-	}
-
-	cropWidth, cropHeight := chop(float64(width)*scale*prescalefactor), chop(float64(height)*scale*prescalefactor)
-	realMinScale := math.Min(maxScale, math.Max(1.0/scale, minScale))
-
-	log.Printf("original resolution: %dx%d\n", img.Bounds().Size().X, img.Bounds().Size().Y)
-	log.Printf("scale: %f, cropw: %f, croph: %f, minscale: %f\n", scale, cropWidth, cropHeight, realMinScale)
-
-	topCrop, err := analyse(o.cropSettings, lowimg, cropWidth, cropHeight, realMinScale)
-	if err != nil {
-		return topCrop, err
-	}
-
-	if prescale == true {
-		topCrop.X = int(chop(float64(topCrop.X) / prescalefactor))
-		topCrop.Y = int(chop(float64(topCrop.Y) / prescalefactor))
-		topCrop.Width = int(chop(float64(topCrop.Width) / prescalefactor))
-		topCrop.Height = int(chop(float64(topCrop.Height) / prescalefactor))
-	}
-
-	return topCrop, nil
-}
-
-// SmartCrop applies the smartcrop algorithms on the the given image and returns
-// the top crop or an error if somthing went wrong.
-func SmartCrop(img image.Image, width, height int) (Crop, error) {
-	analyzer := NewAnalyzer()
-	return analyzer.FindBestCrop(img, width, height)
-}
-
-func chop(x float64) float64 {
-	if x < 0 {
-		return math.Ceil(x)
-	}
-	return math.Floor(x)
-}
-
-func thirds(x float64) float64 {
-	x = (math.Mod(x-(1.0/3.0)+1.0, 2.0)*0.5 - 0.5) * 16.0
-	return math.Max(1.0-x*x, 0.0)
-}
-
-func bounds(l float64) float64 {
-	return math.Min(math.Max(l, 0.0), 255)
-}
-
-func importance(crop *Crop, x, y int) float64 {
+func (crop *Crop) importance(x, y int) float64 {
 	if crop.X > x || x >= crop.X+crop.Width || crop.Y > y || y >= crop.Y+crop.Height {
 		return outsideImportance
 	}
@@ -231,9 +113,9 @@ func importance(crop *Crop, x, y int) float64 {
 	return s + d
 }
 
-func score(output *image.Image, crop *Crop) Score {
-	height := (*output).Bounds().Size().Y
-	width := (*output).Bounds().Size().X
+func (crop *Crop) score(i *image.Image) Score {
+	height := (*i).Bounds().Size().Y
+	width := (*i).Bounds().Size().X
 	score := Score{}
 
 	// same loops but with downsampling
@@ -243,13 +125,13 @@ func score(output *image.Image, crop *Crop) Score {
 			//for y := 0; y < height; y++ {
 			//for x := 0; x < width; x++ {
 
-			r, g, b, _ := (*output).At(x, y).RGBA()
+			r, g, b, _ := (*i).At(x, y).RGBA()
 
 			r8 := float64(r >> 8)
 			g8 := float64(g >> 8)
 			b8 := float64(b >> 8)
 
-			imp := importance(crop, int(x), int(y))
+			imp := crop.importance(int(x), int(y))
 			det := g8 / 255.0
 
 			score.Skin += r8 / 255.0 * (det + skinBias) * imp
@@ -258,11 +140,13 @@ func score(output *image.Image, crop *Crop) Score {
 		}
 	}
 
-	score.Total = (score.Detail*detailWeight + score.Skin*skinWeight + score.Saturation*saturationWeight) / float64(crop.Width) / float64(crop.Height)
+	score.Total = (score.Detail*detailWeight + score.Skin*skinWeight + score.Saturation*saturationWeight) /
+		float64(crop.Width) / float64(crop.Height)
+
 	return score
 }
 
-func drawDebugCrop(topCrop *Crop, o *image.Image) {
+func (crop *Crop) drawDebugCrop(o *image.Image) {
 	w := (*o).Bounds().Size().X
 	h := (*o).Bounds().Size().Y
 
@@ -274,7 +158,7 @@ func drawDebugCrop(topCrop *Crop, o *image.Image) {
 			g8 := float64(g >> 8)
 			b8 := uint8(b >> 8)
 
-			imp := importance(topCrop, x, y)
+			imp := crop.importance(x, y)
 
 			if imp > 0 {
 				g8 += imp * 32
@@ -288,59 +172,343 @@ func drawDebugCrop(topCrop *Crop, o *image.Image) {
 	}
 }
 
-func analyse(settings CropSettings, img image.Image, cropWidth, cropHeight, realMinScale float64) (Crop, error) {
+func crops(i image.Image, cropWidth, cropHeight, realMinScale float64) []Crop {
+	res := []Crop{}
+	width := i.Bounds().Size().X
+	height := i.Bounds().Size().Y
+
+	minDimension := math.Min(float64(width), float64(height))
+	var cropW, cropH float64
+
+	if cropWidth != 0.0 {
+		cropW = cropWidth
+	} else {
+		cropW = minDimension
+	}
+	if cropHeight != 0.0 {
+		cropH = cropHeight
+	} else {
+		cropH = minDimension
+	}
+
+	for scale := maxScale; scale >= realMinScale; scale -= scaleStep {
+		for y := 0; float64(y)+cropH*scale <= float64(height); y += step {
+			for x := 0; float64(x)+cropW*scale <= float64(width); x += step {
+				res = append(res, Crop{
+					X:      x,
+					Y:      y,
+					Width:  int(cropW * scale),
+					Height: int(cropH * scale),
+				})
+			}
+		}
+	}
+
+	return res
+}
+
+//CropSettings contains options to
+//change cropping behaviour
+type CropSettings struct {
+	FaceDetection                    bool
+	FaceDetectionHaarCascadeFilepath string
+	InterpolationType                resize.InterpolationFunction
+	DebugMode                        bool
+}
+
+//Analyzer interface analyzes its struct
+//and returns the best possible crop with the given
+//width and height
+//returns an error if invalid
+type Analyzer interface {
+	FindBestCrop(img image.Image, width, height int) (Crop, Score, error)
+}
+
+type openCVAnalyzer struct {
+	cropSettings CropSettings
+	logger       logger
+	logLevel     LogLevel
+	logGuard     sync.RWMutex
+}
+
+// SmartCrop applies the smartcrop algorithms on the the given image and returns
+// the top crop or an error if somthing went wrong.
+func SmartCrop(img image.Image, width, height int) (Crop, Score, error) {
+	analyzer := NewAnalyzer()
+	return analyzer.FindBestCrop(img, width, height)
+}
+
+//NewAnalyzer returns a new analyzer with default settings
+func NewAnalyzer() Analyzer {
+	faceDetectionHaarCascade := "/usr/share/opencv/haarcascades/haarcascade_frontalface_alt.xml"
+
+	cropSettings := CropSettings{
+		FaceDetection:                    true,
+		FaceDetectionHaarCascadeFilepath: faceDetectionHaarCascade,
+		InterpolationType:                resize.Bicubic,
+		DebugMode:                        false,
+	}
+
+	return NewAnalyzerWithCropSettings(cropSettings)
+}
+
+//NewAnalyzerWithCropSettings returns a new analyzer with the given settings
+func NewAnalyzerWithCropSettings(cropSettings CropSettings) Analyzer {
+	return &openCVAnalyzer{
+		cropSettings: cropSettings,
+		logger:       log.New(os.Stderr, "", log.Flags()),
+		logLevel:     LogLevelInfo,
+	}
+}
+
+func (analyzer openCVAnalyzer) FindBestCrop(img image.Image, width, height int) (Crop, Score, error) {
+	if width == 0 && height == 0 {
+		return Crop{}, Score{}, errors.New("Expect either a height or width")
+	}
+
+	scale := math.Min(float64(img.Bounds().Size().X)/float64(width), float64(img.Bounds().Size().Y)/float64(height))
+
+	// resize image for faster processing
+	var lowimg image.Image
+	var prescalefactor = 1.0
+
+	if prescale {
+
+		//if f := 1.0 / scale / minScale; f < 1.0 {
+		//	prescalefactor = f
+		//}
+		if f := prescaleMin / math.Min(float64(img.Bounds().Size().X), float64(img.Bounds().Size().Y)); f < 1.0 {
+			prescalefactor = f
+		}
+		analyzer.log(LogLevelInfo, "prescale factor %f", prescalefactor)
+
+		lowimg = resize.Resize(
+			uint(float64(img.Bounds().Size().X)*prescalefactor),
+			0,
+			img,
+			analyzer.cropSettings.InterpolationType)
+	} else {
+		lowimg = img
+	}
+
+	if analyzer.cropSettings.DebugMode {
+		writeImageToPng(&lowimg, "./smartcrop_prescale.png")
+	}
+
+	cropWidth, cropHeight := chop(float64(width)*scale*prescalefactor), chop(float64(height)*scale*prescalefactor)
+	realMinScale := math.Min(maxScale, math.Max(1.0/scale, minScale))
+
+	analyzer.log(LogLevelInfo, "original resolution: %dx%d\n", img.Bounds().Size().X, img.Bounds().Size().Y)
+	analyzer.log(LogLevelInfo, "scale: %f, cropw: %f, croph: %f, minscale: %f\n", scale, cropWidth, cropHeight, realMinScale)
+
+	topCrop, topScore, err := analyzer.analyse(lowimg, cropWidth, cropHeight, realMinScale)
+	if err != nil {
+		return topCrop, topScore, err
+	}
+
+	if prescale == true {
+		topCrop.X = int(chop(float64(topCrop.X) / prescalefactor))
+		topCrop.Y = int(chop(float64(topCrop.Y) / prescalefactor))
+		topCrop.Width = int(chop(float64(topCrop.Width) / prescalefactor))
+		topCrop.Height = int(chop(float64(topCrop.Height) / prescalefactor))
+	}
+
+	return topCrop, topScore, nil
+}
+
+func (analyzer openCVAnalyzer) analyse(img image.Image, cropWidth, cropHeight, realMinScale float64) (Crop, Score, error) {
 	o := image.Image(image.NewRGBA(img.Bounds()))
 
-	now := time.Now()
-	edgeDetect(img, o)
-	log.Println("Time elapsed edge:", time.Since(now))
-	debugOutput(settings.DebugMode, &o, "edge")
+	analyzer.edgeDetect(img, o)
+	debugOutput(analyzer.cropSettings.DebugMode, &o, "edge")
 
-	now = time.Now()
-	if settings.FaceDetection {
-		err := faceDetect(settings, img, o)
+	if analyzer.cropSettings.FaceDetection {
+		err := analyzer.faceDetect(img, o)
 
 		if err != nil {
-			return Crop{}, err
+			return Crop{}, Score{}, err
 		}
 
-		log.Println("Time elapsed face:", time.Since(now))
-		debugOutput(settings.DebugMode, &o, "face")
+		debugOutput(analyzer.cropSettings.DebugMode, &o, "face")
 	} else {
-		skinDetect(img, o)
-		log.Println("Time elapsed skin:", time.Since(now))
-		debugOutput(settings.DebugMode, &o, "skin")
+		analyzer.skinDetect(img, o)
+		debugOutput(analyzer.cropSettings.DebugMode, &o, "skin")
 	}
 
-	now = time.Now()
-	saturationDetect(img, o)
-	log.Println("Time elapsed sat:", time.Since(now))
-	debugOutput(settings.DebugMode, &o, "saturation")
+	analyzer.saturationDetect(img, o)
+	debugOutput(analyzer.cropSettings.DebugMode, &o, "saturation")
 
-	now = time.Now()
-	var topCrop Crop
-	topScore := -1.0
+	var (
+		topCrop  Crop
+		topScore = Score{Total: -1.0}
+	)
 	cs := crops(o, cropWidth, cropHeight, realMinScale)
-	log.Println("Time elapsed crops:", time.Since(now), len(cs))
 
-	now = time.Now()
 	for _, crop := range cs {
-		nowIn := time.Now()
-		crop.Score = score(&o, &crop)
-		log.Println("Time elapsed single-score:", time.Since(nowIn))
-		if crop.Score.Total > topScore {
+		score := crop.score(&o)
+		if score.Total > topScore.Total {
 			topCrop = crop
-			topScore = crop.Score.Total
+			topScore = score
 		}
 	}
-	log.Println("Time elapsed score:", time.Since(now))
 
-	if settings.DebugMode {
-		drawDebugCrop(&topCrop, &o)
+	if analyzer.cropSettings.DebugMode {
+		topCrop.drawDebugCrop(&o)
 		debugOutput(true, &o, "final")
 	}
 
-	return topCrop, nil
+	return topCrop, topScore, nil
+}
+
+func (analyzer openCVAnalyzer) edgeDetect(i image.Image, o image.Image) {
+	w := i.Bounds().Size().X
+	h := i.Bounds().Size().Y
+	cies := makeCies(i)
+
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			var lightness float64
+
+			if x == 0 || x >= w-1 || y == 0 || y >= h-1 {
+				//lightness = cie((*i).At(x, y))
+				lightness = 0
+			} else {
+				lightness = cies[y*w+x]*4.0 -
+					cies[x+(y-1)*w] -
+					cies[x-1+y*w] -
+					cies[x+1+y*w] -
+					cies[x+(y+1)*w]
+			}
+
+			nc := color.RGBA{0, uint8(bounds(lightness)), 0, 255}
+			o.(*image.RGBA).Set(x, y, nc)
+		}
+	}
+}
+
+func (analyzer openCVAnalyzer) faceDetect(i image.Image, o image.Image) error {
+
+	_, err := os.Stat(analyzer.cropSettings.FaceDetectionHaarCascadeFilepath)
+	if err != nil {
+		return err
+	}
+	cascade := opencv.LoadHaarClassifierCascade(analyzer.cropSettings.FaceDetectionHaarCascadeFilepath)
+	defer cascade.Release()
+
+	cvImage := opencv.FromImage(i)
+	defer cvImage.Release()
+
+	faces := cascade.DetectObjects(cvImage)
+
+	gc := draw2dimg.NewGraphicContext((o).(*image.RGBA))
+
+	analyzer.log(LogLevelInfo, "Faces detected: %d", len(faces))
+
+	for _, face := range faces {
+		analyzer.log(LogLevelInfo, "Face: x: %d y: %d w: %d h: %d\n", face.X(), face.Y(), face.Width(), face.Height())
+		draw2dkit.Ellipse(
+			gc,
+			float64(face.X()+(face.Width()/2)),
+			float64(face.Y()+(face.Height()/2)),
+			float64(face.Width()/2),
+			float64(face.Height())/2)
+		gc.SetFillColor(color.RGBA{255, 0, 0, 255})
+		gc.Fill()
+	}
+	return nil
+}
+
+func (analyzer openCVAnalyzer) skinDetect(i image.Image, o image.Image) {
+
+	w := i.Bounds().Size().X
+	h := i.Bounds().Size().Y
+
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			lightness := cie(i.At(x, y)) / 255.0
+			skin := skinCol(i.At(x, y))
+
+			if skin > skinThreshold && lightness >= skinBrightnessMin && lightness <= skinBrightnessMax {
+				r := (skin - skinThreshold) * (255.0 / (1.0 - skinThreshold))
+				_, g, b, _ := o.At(x, y).RGBA()
+				nc := color.RGBA{uint8(bounds(r)), uint8(g >> 8), uint8(b >> 8), 255}
+				o.(*image.RGBA).Set(x, y, nc)
+			} else {
+				_, g, b, _ := o.At(x, y).RGBA()
+				nc := color.RGBA{0, uint8(g >> 8), uint8(b >> 8), 255}
+				o.(*image.RGBA).Set(x, y, nc)
+			}
+		}
+	}
+}
+
+func (analyzer openCVAnalyzer) saturationDetect(i image.Image, o image.Image) {
+
+	w := i.Bounds().Size().X
+	h := i.Bounds().Size().Y
+
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			lightness := cie(i.At(x, y)) / 255.0
+			saturation := saturation(i.At(x, y))
+
+			if saturation > saturationThreshold && lightness >= saturationBrightnessMin && lightness <= saturationBrightnessMax {
+				b := (saturation - saturationThreshold) * (255.0 / (1.0 - saturationThreshold))
+				r, g, _, _ := o.At(x, y).RGBA()
+				nc := color.RGBA{uint8(r >> 8), uint8(g >> 8), uint8(bounds(b)), 255}
+				o.(*image.RGBA).Set(x, y, nc)
+			} else {
+				r, g, _, _ := o.At(x, y).RGBA()
+				nc := color.RGBA{uint8(r >> 8), uint8(g >> 8), 0, 255}
+				o.(*image.RGBA).Set(x, y, nc)
+			}
+		}
+	}
+}
+
+func (analyzer *openCVAnalyzer) SetLogger(l logger, logLevel LogLevel) {
+	analyzer.logGuard.Lock()
+	defer analyzer.logGuard.Unlock()
+
+	analyzer.logger = l
+	analyzer.logLevel = logLevel
+}
+
+func (analyzer *openCVAnalyzer) getLogger() (logger, LogLevel) {
+	analyzer.logGuard.RLock()
+	defer analyzer.logGuard.RUnlock()
+
+	return analyzer.logger, analyzer.logLevel
+}
+
+func (analyzer *openCVAnalyzer) log(lvl LogLevel, line string, args ...interface{}) {
+	logger, logLevel := analyzer.getLogger()
+
+	if logger == nil {
+		return
+	}
+
+	if logLevel > lvl {
+		return
+	}
+
+	logger.Output(2, fmt.Sprintf("%-4s %s", lvl, fmt.Sprintf(line, args...)))
+}
+
+func chop(x float64) float64 {
+	if x < 0 {
+		return math.Ceil(x)
+	}
+	return math.Floor(x)
+}
+
+func thirds(x float64) float64 {
+	x = (math.Mod(x-(1.0/3.0)+1.0, 2.0)*0.5 - 0.5) * 16.0
+	return math.Max(1.0-x*x, 0.0)
+}
+
+func bounds(l float64) float64 {
+	return math.Min(math.Max(l, 0.0), 255)
 }
 
 func saturation(c color.Color) float64 {
@@ -403,147 +571,4 @@ func makeCies(img image.Image) []float64 {
 	}
 
 	return cies
-}
-
-func edgeDetect(i image.Image, o image.Image) {
-	w := i.Bounds().Size().X
-	h := i.Bounds().Size().Y
-	cies := makeCies(i)
-
-	for y := 0; y < h; y++ {
-		for x := 0; x < w; x++ {
-			var lightness float64
-
-			if x == 0 || x >= w-1 || y == 0 || y >= h-1 {
-				//lightness = cie((*i).At(x, y))
-				lightness = 0
-			} else {
-				lightness = cies[y*w+x]*4.0 -
-					cies[x+(y-1)*w] -
-					cies[x-1+y*w] -
-					cies[x+1+y*w] -
-					cies[x+(y+1)*w]
-			}
-
-			nc := color.RGBA{0, uint8(bounds(lightness)), 0, 255}
-			o.(*image.RGBA).Set(x, y, nc)
-		}
-	}
-}
-
-func faceDetect(settings CropSettings, i image.Image, o image.Image) error {
-
-	_, err := os.Stat(settings.FaceDetectionHaarCascadeFilepath)
-	if err != nil {
-		return err
-	}
-	cascade := opencv.LoadHaarClassifierCascade(settings.FaceDetectionHaarCascadeFilepath)
-	defer cascade.Release()
-
-	cvImage := opencv.FromImage(i)
-	defer cvImage.Release()
-
-	faces := cascade.DetectObjects(cvImage)
-
-	gc := draw2dimg.NewGraphicContext((o).(*image.RGBA))
-
-	if settings.DebugMode == true {
-		log.Println("Faces detected:", len(faces))
-	}
-
-	for _, face := range faces {
-		if settings.DebugMode == true {
-			log.Printf("Face: x: %d y: %d w: %d h: %d\n", face.X(), face.Y(), face.Width(), face.Height())
-		}
-		draw2dkit.Ellipse(
-			gc,
-			float64(face.X()+(face.Width()/2)),
-			float64(face.Y()+(face.Height()/2)),
-			float64(face.Width()/2),
-			float64(face.Height())/2)
-		gc.SetFillColor(color.RGBA{255, 0, 0, 255})
-		gc.Fill()
-	}
-	return nil
-}
-
-func skinDetect(i image.Image, o image.Image) {
-	w := i.Bounds().Size().X
-	h := i.Bounds().Size().Y
-
-	for y := 0; y < h; y++ {
-		for x := 0; x < w; x++ {
-			lightness := cie(i.At(x, y)) / 255.0
-			skin := skinCol(i.At(x, y))
-
-			if skin > skinThreshold && lightness >= skinBrightnessMin && lightness <= skinBrightnessMax {
-				r := (skin - skinThreshold) * (255.0 / (1.0 - skinThreshold))
-				_, g, b, _ := o.At(x, y).RGBA()
-				nc := color.RGBA{uint8(bounds(r)), uint8(g >> 8), uint8(b >> 8), 255}
-				o.(*image.RGBA).Set(x, y, nc)
-			} else {
-				_, g, b, _ := o.At(x, y).RGBA()
-				nc := color.RGBA{0, uint8(g >> 8), uint8(b >> 8), 255}
-				o.(*image.RGBA).Set(x, y, nc)
-			}
-		}
-	}
-}
-
-func saturationDetect(i image.Image, o image.Image) {
-	w := i.Bounds().Size().X
-	h := i.Bounds().Size().Y
-
-	for y := 0; y < h; y++ {
-		for x := 0; x < w; x++ {
-			lightness := cie(i.At(x, y)) / 255.0
-			saturation := saturation(i.At(x, y))
-
-			if saturation > saturationThreshold && lightness >= saturationBrightnessMin && lightness <= saturationBrightnessMax {
-				b := (saturation - saturationThreshold) * (255.0 / (1.0 - saturationThreshold))
-				r, g, _, _ := o.At(x, y).RGBA()
-				nc := color.RGBA{uint8(r >> 8), uint8(g >> 8), uint8(bounds(b)), 255}
-				o.(*image.RGBA).Set(x, y, nc)
-			} else {
-				r, g, _, _ := o.At(x, y).RGBA()
-				nc := color.RGBA{uint8(r >> 8), uint8(g >> 8), 0, 255}
-				o.(*image.RGBA).Set(x, y, nc)
-			}
-		}
-	}
-}
-
-func crops(i image.Image, cropWidth, cropHeight, realMinScale float64) []Crop {
-	res := []Crop{}
-	width := i.Bounds().Size().X
-	height := i.Bounds().Size().Y
-
-	minDimension := math.Min(float64(width), float64(height))
-	var cropW, cropH float64
-
-	if cropWidth != 0.0 {
-		cropW = cropWidth
-	} else {
-		cropW = minDimension
-	}
-	if cropHeight != 0.0 {
-		cropH = cropHeight
-	} else {
-		cropH = minDimension
-	}
-
-	for scale := maxScale; scale >= realMinScale; scale -= scaleStep {
-		for y := 0; float64(y)+cropH*scale <= float64(height); y += step {
-			for x := 0; float64(x)+cropW*scale <= float64(width); x += step {
-				res = append(res, Crop{
-					X:      x,
-					Y:      y,
-					Width:  int(cropW * scale),
-					Height: int(cropH * scale),
-				})
-			}
-		}
-	}
-
-	return res
 }
