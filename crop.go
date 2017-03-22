@@ -69,8 +69,6 @@ const (
 	edgeWeight        = -20.0
 	outsideImportance = -0.5
 	ruleOfThirds      = true
-	prescale          = true
-	prescaleMin       = 400.00
 )
 
 // Score contains values that classify matches
@@ -97,6 +95,8 @@ type CropSettings struct {
 	FaceDetectionHaarCascadeFilepath string
 	InterpolationType                resize.InterpolationFunction
 	DebugMode                        bool
+	Prescale                         bool
+	PrescaleValue                    float64
 }
 
 //Analyzer interface analyzes its struct
@@ -120,6 +120,8 @@ func NewAnalyzer() Analyzer {
 		FaceDetectionHaarCascadeFilepath: faceDetectionHaarCascade,
 		InterpolationType:                resize.Bicubic,
 		DebugMode:                        false,
+		Prescale:                         true,
+		PrescaleValue:                    400,
 	}
 
 	return &openCVAnalyzer{cropSettings: cropSettings}
@@ -140,15 +142,14 @@ func (o openCVAnalyzer) FindBestCrop(img image.Image, width, height int) (Crop, 
 	// resize image for faster processing
 	var lowimg image.Image
 	var prescalefactor = 1.0
+	cropWidth := float64(width)
+	cropHeight := float64(height)
 
-	if prescale {
-
-		//if f := 1.0 / scale / minScale; f < 1.0 {
-		//	prescalefactor = f
-		//}
-		if f := prescaleMin / math.Min(float64(img.Bounds().Size().X), float64(img.Bounds().Size().Y)); f < 1.0 {
+	if o.cropSettings.Prescale {
+		if f := o.cropSettings.PrescaleValue / math.Min(float64(img.Bounds().Size().X), float64(img.Bounds().Size().Y)); f < 1.0 {
 			prescalefactor = f
 		}
+
 		log.Println(prescalefactor)
 
 		lowimg = resize.Resize(
@@ -156,26 +157,26 @@ func (o openCVAnalyzer) FindBestCrop(img image.Image, width, height int) (Crop, 
 			0,
 			img,
 			o.cropSettings.InterpolationType)
+
+		cropWidth, cropHeight = chop(float64(width)*scale*prescalefactor), chop(float64(height)*scale*prescalefactor)
 	} else {
 		lowimg = img
 	}
 
-	if o.cropSettings.DebugMode {
-		writeImageToPng(&lowimg, "./smartcrop_prescale.png")
-	}
-
-	cropWidth, cropHeight := chop(float64(width)*scale*prescalefactor), chop(float64(height)*scale*prescalefactor)
 	realMinScale := math.Min(maxScale, math.Max(1.0/scale, minScale))
 
-	log.Printf("original resolution: %dx%d\n", img.Bounds().Size().X, img.Bounds().Size().Y)
-	log.Printf("scale: %f, cropw: %f, croph: %f, minscale: %f\n", scale, cropWidth, cropHeight, realMinScale)
+	if o.cropSettings.DebugMode {
+		writeImageToPng(&lowimg, "./smartcrop_prescale.png")
+		log.Printf("original resolution: %dx%d\n", img.Bounds().Size().X, img.Bounds().Size().Y)
+		log.Printf("scale: %f, cropw: %f, croph: %f, minscale: %f\n", scale, cropWidth, cropHeight, realMinScale)
+	}
 
 	topCrop, err := analyse(o.cropSettings, lowimg, cropWidth, cropHeight, realMinScale)
 	if err != nil {
 		return topCrop, err
 	}
 
-	if prescale == true {
+	if o.cropSettings.Prescale {
 		topCrop.X = int(chop(float64(topCrop.X) / prescalefactor))
 		topCrop.Y = int(chop(float64(topCrop.Y) / prescalefactor))
 		topCrop.Width = int(chop(float64(topCrop.Width) / prescalefactor))
