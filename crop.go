@@ -34,6 +34,7 @@ import (
 	"errors"
 	"image"
 	"image/color"
+	"io/ioutil"
 	"log"
 	"math"
 	"time"
@@ -133,14 +134,13 @@ func (o smartcropAnalyzer) FindBestCrop(img image.Image, width, height int) (Cro
 	var prescalefactor = 1.0
 
 	if prescale {
-
 		//if f := 1.0 / scale / minScale; f < 1.0 {
 		//	prescalefactor = f
 		//}
 		if f := prescaleMin / math.Min(float64(img.Bounds().Size().X), float64(img.Bounds().Size().Y)); f < 1.0 {
 			prescalefactor = f
 		}
-		log.Println(prescalefactor)
+		o.cropSettings.Log.Println(prescalefactor)
 
 		lowimg = resize.Resize(
 			uint(float64(img.Bounds().Size().X)*prescalefactor),
@@ -158,8 +158,8 @@ func (o smartcropAnalyzer) FindBestCrop(img image.Image, width, height int) (Cro
 	cropWidth, cropHeight := chop(float64(width)*scale*prescalefactor), chop(float64(height)*scale*prescalefactor)
 	realMinScale := math.Min(maxScale, math.Max(1.0/scale, minScale))
 
-	log.Printf("original resolution: %dx%d\n", img.Bounds().Size().X, img.Bounds().Size().Y)
-	log.Printf("scale: %f, cropw: %f, croph: %f, minscale: %f\n", scale, cropWidth, cropHeight, realMinScale)
+	o.cropSettings.Log.Printf("original resolution: %dx%d\n", img.Bounds().Size().X, img.Bounds().Size().Y)
+	o.cropSettings.Log.Printf("scale: %f, cropw: %f, croph: %f, minscale: %f\n", scale, cropWidth, cropHeight, realMinScale)
 
 	topCrop, err := analyse(o.cropSettings, lowimg, cropWidth, cropHeight, realMinScale)
 	if err != nil {
@@ -284,7 +284,7 @@ func analyse(settings CropSettings, img image.Image, cropWidth, cropHeight, real
 
 	now := time.Now()
 	edgeDetect(img, o)
-	log.Println("Time elapsed edge:", time.Since(now))
+	settings.Log.Println("Time elapsed edge:", time.Since(now))
 	debugOutput(settings.DebugMode, &o, "edge")
 
 	now = time.Now()
@@ -294,26 +294,26 @@ func analyse(settings CropSettings, img image.Image, cropWidth, cropHeight, real
 
 	now = time.Now()
 	saturationDetect(img, o)
-	log.Println("Time elapsed sat:", time.Since(now))
+	settings.Log.Println("Time elapsed sat:", time.Since(now))
 	debugOutput(settings.DebugMode, &o, "saturation")
 
 	now = time.Now()
 	var topCrop Crop
 	topScore := -1.0
 	cs := crops(o, cropWidth, cropHeight, realMinScale)
-	log.Println("Time elapsed crops:", time.Since(now), len(cs))
+	settings.Log.Println("Time elapsed crops:", time.Since(now), len(cs))
 
 	now = time.Now()
 	for _, crop := range cs {
 		nowIn := time.Now()
 		crop.Score = score(&o, &crop)
-		log.Println("Time elapsed single-score:", time.Since(nowIn))
+		settings.Log.Println("Time elapsed single-score:", time.Since(nowIn))
 		if crop.Score.Total > topScore {
 			topCrop = crop
 			topScore = crop.Score.Total
 		}
 	}
-	log.Println("Time elapsed score:", time.Since(now))
+	settings.Log.Println("Time elapsed score:", time.Since(now))
 
 	if settings.DebugMode {
 		drawDebugCrop(&topCrop, &o)
