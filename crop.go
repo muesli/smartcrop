@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Christian Muehlhaeuser
+ * Copyright (c) 2014-2017 Christian Muehlhaeuser
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -36,12 +36,8 @@ import (
 	"image/color"
 	"log"
 	"math"
-	"os"
 	"time"
 
-	"github.com/lazywei/go-opencv/opencv"
-	"github.com/llgcode/draw2d/draw2dimg"
-	"github.com/llgcode/draw2d/draw2dkit"
 	"github.com/nfnt/resize"
 )
 
@@ -49,7 +45,7 @@ var skinColor = [3]float64{0.78, 0.57, 0.44}
 
 const (
 	detailWeight            = 0.2
-	skinBias                = 0.9
+	skinBias                = 0.01
 	skinBrightnessMin       = 0.2
 	skinBrightnessMax       = 1.0
 	skinThreshold           = 0.8
@@ -90,47 +86,42 @@ type Crop struct {
 	Score  Score
 }
 
-//CropSettings contains options to
-//change cropping behaviour
+// CropSettings contains options to change cropping behaviour
 type CropSettings struct {
-	FaceDetection                    bool
-	FaceDetectionHaarCascadeFilepath string
-	InterpolationType                resize.InterpolationFunction
-	DebugMode                        bool
+	InterpolationType resize.InterpolationFunction
+	DebugMode         bool
+	Log               *log.Logger
 }
 
-//Analyzer interface analyzes its struct
-//and returns the best possible crop with the given
-//width and height
-//returns an error if invalid
+// Analyzer interface analyzes its struct and returns the best possible crop with the given
+// width and height returns an error if invalid
 type Analyzer interface {
 	FindBestCrop(img image.Image, width, height int) (Crop, error)
 }
 
-type openCVAnalyzer struct {
+type smartcropAnalyzer struct {
 	cropSettings CropSettings
 }
 
-//NewAnalyzer returns a new analyzer with default settings
+// NewAnalyzer returns a new analyzer with default settings
 func NewAnalyzer() Analyzer {
-	faceDetectionHaarCascade := "/usr/share/opencv/haarcascades/haarcascade_frontalface_alt.xml"
-
 	cropSettings := CropSettings{
-		FaceDetection:                    true,
-		FaceDetectionHaarCascadeFilepath: faceDetectionHaarCascade,
-		InterpolationType:                resize.Bicubic,
-		DebugMode:                        false,
+		InterpolationType: resize.Bicubic,
+		DebugMode:         true,
 	}
 
-	return &openCVAnalyzer{cropSettings: cropSettings}
+	return NewAnalyzerWithCropSettings(cropSettings)
 }
 
-//NewAnalyzerWithCropSettings returns a new analyzer with the given settings
+// NewAnalyzerWithCropSettings returns a new analyzer with the given settings
 func NewAnalyzerWithCropSettings(cropSettings CropSettings) Analyzer {
-	return &openCVAnalyzer{cropSettings: cropSettings}
+	if cropSettings.Log == nil {
+		cropSettings.Log = log.New(ioutil.Discard, "", 0)
+	}
+	return &smartcropAnalyzer{cropSettings: cropSettings}
 }
 
-func (o openCVAnalyzer) FindBestCrop(img image.Image, width, height int) (Crop, error) {
+func (o smartcropAnalyzer) FindBestCrop(img image.Image, width, height int) (Crop, error) {
 	if width == 0 && height == 0 {
 		return Crop{}, errors.New("Expect either a height or width")
 	}
@@ -297,20 +288,9 @@ func analyse(settings CropSettings, img image.Image, cropWidth, cropHeight, real
 	debugOutput(settings.DebugMode, &o, "edge")
 
 	now = time.Now()
-	if settings.FaceDetection {
-		err := faceDetect(settings, img, o)
-
-		if err != nil {
-			return Crop{}, err
-		}
-
-		log.Println("Time elapsed face:", time.Since(now))
-		debugOutput(settings.DebugMode, &o, "face")
-	} else {
-		skinDetect(img, o)
-		log.Println("Time elapsed skin:", time.Since(now))
-		debugOutput(settings.DebugMode, &o, "skin")
-	}
+	skinDetect(img, o)
+	settings.Log.Println("Time elapsed skin:", time.Since(now))
+	debugOutput(settings.DebugMode, &o, "skin")
 
 	now = time.Now()
 	saturationDetect(img, o)
@@ -429,42 +409,6 @@ func edgeDetect(i image.Image, o image.Image) {
 			o.(*image.RGBA).Set(x, y, nc)
 		}
 	}
-}
-
-func faceDetect(settings CropSettings, i image.Image, o image.Image) error {
-
-	_, err := os.Stat(settings.FaceDetectionHaarCascadeFilepath)
-	if err != nil {
-		return err
-	}
-	cascade := opencv.LoadHaarClassifierCascade(settings.FaceDetectionHaarCascadeFilepath)
-	defer cascade.Release()
-
-	cvImage := opencv.FromImage(i)
-	defer cvImage.Release()
-
-	faces := cascade.DetectObjects(cvImage)
-
-	gc := draw2dimg.NewGraphicContext((o).(*image.RGBA))
-
-	if settings.DebugMode == true {
-		log.Println("Faces detected:", len(faces))
-	}
-
-	for _, face := range faces {
-		if settings.DebugMode == true {
-			log.Printf("Face: x: %d y: %d w: %d h: %d\n", face.X(), face.Y(), face.Width(), face.Height())
-		}
-		draw2dkit.Ellipse(
-			gc,
-			float64(face.X()+(face.Width()/2)),
-			float64(face.Y()+(face.Height()/2)),
-			float64(face.Width()/2),
-			float64(face.Height())/2)
-		gc.SetFillColor(color.RGBA{255, 0, 0, 255})
-		gc.Fill()
-	}
-	return nil
 }
 
 func skinDetect(i image.Image, o image.Image) {
