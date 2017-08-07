@@ -177,7 +177,7 @@ func (o smartcropAnalyzer) FindBestCrop(img image.Image, width, height int) (Cro
 }
 
 // SmartCrop applies the smartcrop algorithms on the the given image and returns
-// the top crop or an error if somthing went wrong.
+// the top crop or an error if something went wrong.
 func SmartCrop(img image.Image, width, height int) (Crop, error) {
 	analyzer := NewAnalyzer()
 	return analyzer.FindBestCrop(img, width, height)
