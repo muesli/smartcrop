@@ -59,7 +59,10 @@ func TestCrop(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Printf("Top crop: %+v\n", topCrop)
+	want := image.Rect(196, 42, 580, 427)
+	if topCrop != want {
+		t.Fatalf("want %v, got %v", want, topCrop)
+	}
 
 	sub, ok := img.(SubImager)
 	if ok {
