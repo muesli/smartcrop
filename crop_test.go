@@ -63,8 +63,9 @@ func TestCrop(t *testing.T) {
 
 	sub, ok := img.(SubImager)
 	if ok {
-		cropImage := sub.SubImage(image.Rect(topCrop.X, topCrop.Y, topCrop.Width+topCrop.X, topCrop.Height+topCrop.Y))
-		writeImageToJpeg(&cropImage, "./smartcrop.jpg")
+		cropImage := sub.SubImage(topCrop)
+		//		cropImage := sub.SubImage(image.Rect(topCrop.X, topCrop.Y, topCrop.Width+topCrop.X, topCrop.Height+topCrop.Y))
+		writeImage("jpeg", cropImage, "./smartcrop.jpg")
 
 	} else {
 		t.Error(errors.New("No SubImage support"))
@@ -80,15 +81,16 @@ func BenchmarkEdge(b *testing.B) {
 	if err != nil {
 		b.Error(err)
 	}
-	o := image.Image(image.NewRGBA(img.Bounds()))
+
+	rgbaImg := toRGBA(img)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		edgeDetect(img, o)
+		o := image.NewRGBA(img.Bounds())
+		edgeDetect(rgbaImg, o)
 	}
 }
 
 func BenchmarkImageDir(b *testing.B) {
-
 	b.StopTimer()
 
 	files, err := ioutil.ReadDir("./samples/hatchet")
@@ -115,15 +117,14 @@ func BenchmarkImageDir(b *testing.B) {
 			fmt.Printf("Top crop: %+v\n", topCrop)
 
 			sub, ok := img.(SubImager)
-			//sub, ok := img.(SubImager)
 			if ok {
-				cropImage := sub.SubImage(image.Rect(topCrop.X, topCrop.Y, topCrop.Width+topCrop.X, topCrop.Height+topCrop.Y))
-				writeImageToJpeg(&cropImage, "/tmp/smartcrop/smartcrop-"+file.Name())
+				cropImage := sub.SubImage(topCrop)
+				//				cropImage := sub.SubImage(image.Rect(topCrop.X, topCrop.Y, topCrop.Width+topCrop.X, topCrop.Height+topCrop.Y))
+				writeImage("jpeg", cropImage, "/tmp/smartcrop/smartcrop-"+file.Name())
 			} else {
 				b.Error(errors.New("No SubImage support"))
 			}
 		}
 	}
 	//fmt.Println("average time/image:", b.t
-
 }

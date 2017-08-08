@@ -31,34 +31,51 @@ Jonas Wagner's smartcrop.js https://github.com/jwagner/smartcrop.js
 package smartcrop
 
 import (
+	"errors"
 	"image"
 	"image/jpeg"
 	"image/png"
 	"os"
+	"path/filepath"
 )
 
-func debugOutput(debug bool, img *image.Image, debugType string) {
+func debugOutput(debug bool, img *image.RGBA, debugType string) {
 	if debug {
-		writeImageToPng(img, "./smartcrop_"+debugType+".png")
+		writeImage("png", img, "./smartcrop_"+debugType+".png")
 	}
 }
 
-func writeImageToJpeg(img *image.Image, name string) {
-	fso, err := os.Create(name)
-	if err != nil {
+func writeImage(imgtype string, img image.Image, name string) error {
+	if err := os.MkdirAll(filepath.Dir(name), 0755); err != nil {
 		panic(err)
 	}
-	defer fso.Close()
 
-	jpeg.Encode(fso, (*img), &jpeg.Options{Quality: 100})
+	switch imgtype {
+	case "png":
+		return writeImageToPng(img, name)
+	case "jpeg":
+		return writeImageToJpeg(img, name)
+	}
+
+	return errors.New("Unknown image type")
 }
 
-func writeImageToPng(img *image.Image, name string) {
+func writeImageToJpeg(img image.Image, name string) error {
 	fso, err := os.Create(name)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	defer fso.Close()
 
-	png.Encode(fso, (*img))
+	return jpeg.Encode(fso, img, &jpeg.Options{Quality: 100})
+}
+
+func writeImageToPng(img image.Image, name string) error {
+	fso, err := os.Create(name)
+	if err != nil {
+		return err
+	}
+	defer fso.Close()
+
+	return png.Encode(fso, img)
 }
