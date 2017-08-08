@@ -130,7 +130,7 @@ func BenchmarkImageDir(b *testing.B) {
 				b.Error(err)
 			}
 
-			topCrop, err := SmartCrop(img, 900, 500)
+			topCrop, err := SmartCrop(img, 220, 220)
 			if err != nil {
 				b.Error(err)
 			}
