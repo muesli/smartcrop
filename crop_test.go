@@ -73,7 +73,24 @@ func TestCrop(t *testing.T) {
 	} else {
 		t.Error(errors.New("No SubImage support"))
 	}
+}
 
+func BenchmarkCrop(b *testing.B) {
+	fi, err := os.Open(testFile)
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer fi.Close()
+	img, _, err := image.Decode(fi)
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := SmartCrop(img, 250, 250); err != nil {
+			b.Error(err)
+		}
+	}
 }
 
 func BenchmarkEdge(b *testing.B) {
