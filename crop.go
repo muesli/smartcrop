@@ -115,7 +115,7 @@ type smartcropAnalyzer struct {
 func NewAnalyzer() Analyzer {
 	cropSettings := CropSettings{
 		InterpolationType: resize.Bicubic,
-		DebugMode:         true,
+		DebugMode:         false,
 	}
 
 	return NewAnalyzerWithCropSettings(cropSettings)
