@@ -3,8 +3,11 @@ smartcrop
 
 smartcrop finds good crops for arbitrary images and crop sizes, based on Jonas Wagner's [smartcrop.js](https://github.com/jwagner/smartcrop.js)
 
-![Example](./gopher_example.jpg)
+![Example](./examples/gopher.jpg)
 Image: [https://www.flickr.com/photos/usfwspacific/8182486789](https://www.flickr.com/photos/usfwspacific/8182486789) CC BY U.S. Fish & Wildlife
+
+![Example](./examples/goodtimes.jpg)
+Image: [https://www.flickr.com/photos/endogamia/5682480447](https://www.flickr.com/photos/endogamia/5682480447) by N. Feans
 
 ## Installation
 
