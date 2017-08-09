@@ -81,13 +81,16 @@ type Score struct {
 	Detail     float64
 	Saturation float64
 	Skin       float64
-	Total      float64
 }
 
 // Crop contains results
 type Crop struct {
 	image.Rectangle
 	Score Score
+}
+
+func (c Crop) totalScore() float64 {
+	return (c.Score.Detail*detailWeight + c.Score.Skin*skinWeight + c.Score.Saturation*saturationWeight) / float64(c.Dx()) / float64(c.Dy())
 }
 
 // CropSettings contains options to change cropping behaviour
@@ -250,7 +253,6 @@ func score(output *image.RGBA, crop Crop) Score {
 		}
 	}
 
-	score.Total = (score.Detail*detailWeight + score.Skin*skinWeight + score.Saturation*saturationWeight) / float64(crop.Dx()) / float64(crop.Dy())
 	return score
 }
 
@@ -283,9 +285,9 @@ func analyse(settings CropSettings, img *image.RGBA, cropWidth, cropHeight, real
 		nowIn := time.Now()
 		crop.Score = score(o, crop)
 		settings.Log.Println("Time elapsed single-score:", time.Since(nowIn))
-		if crop.Score.Total > topScore {
+		if crop.totalScore() > topScore {
 			topCrop = crop
-			topScore = crop.Score.Total
+			topScore = crop.totalScore()
 		}
 	}
 	settings.Log.Println("Time elapsed score:", time.Since(now))
