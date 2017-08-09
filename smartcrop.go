@@ -76,6 +76,12 @@ const (
 	prescaleMin             = 400.00
 )
 
+// Analyzer interface analyzes its struct and returns the best possible crop with the given
+// width and height returns an error if invalid
+type Analyzer interface {
+	FindBestCrop(img image.Image, width, height int) (image.Rectangle, error)
+}
+
 // Score contains values that classify matches
 type Score struct {
 	Detail     float64
@@ -89,21 +95,11 @@ type Crop struct {
 	Score Score
 }
 
-func (c Crop) totalScore() float64 {
-	return (c.Score.Detail*detailWeight + c.Score.Skin*skinWeight + c.Score.Saturation*saturationWeight) / float64(c.Dx()) / float64(c.Dy())
-}
-
 // CropSettings contains options to change cropping behaviour
 type CropSettings struct {
 	InterpolationType resize.InterpolationFunction
 	DebugMode         bool
 	Log               *log.Logger
-}
-
-// Analyzer interface analyzes its struct and returns the best possible crop with the given
-// width and height returns an error if invalid
-type Analyzer interface {
-	FindBestCrop(img image.Image, width, height int) (image.Rectangle, error)
 }
 
 type smartcropAnalyzer struct {
@@ -182,11 +178,8 @@ func (o smartcropAnalyzer) FindBestCrop(img image.Image, width, height int) (ima
 	return topCrop.Canon(), nil
 }
 
-// SmartCrop applies the smartcrop algorithms on the the given image and returns
-// the top crop or an error if something went wrong.
-func SmartCrop(img image.Image, width, height int) (image.Rectangle, error) {
-	analyzer := NewAnalyzer()
-	return analyzer.FindBestCrop(img, width, height)
+func (c Crop) totalScore() float64 {
+	return (c.Score.Detail*detailWeight + c.Score.Skin*skinWeight + c.Score.Saturation*saturationWeight) / float64(c.Dx()) / float64(c.Dy())
 }
 
 func chop(x float64) float64 {
@@ -477,4 +470,12 @@ func toRGBA(img image.Image) *image.RGBA {
 	out := image.NewRGBA(img.Bounds())
 	draw.Copy(out, image.Pt(0, 0), img, img.Bounds(), draw.Src, nil)
 	return out
+}
+
+// SmartCrop applies the smartcrop algorithms on the the given image and returns
+// the top crop or an error if something went wrong.
+// This is still here for legacy/backwards-compat reasons
+func SmartCrop(img image.Image, width, height int) (image.Rectangle, error) {
+	analyzer := NewAnalyzer()
+	return analyzer.FindBestCrop(img, width, height)
 }
