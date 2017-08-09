@@ -39,7 +39,7 @@ import (
 )
 
 var (
-	testFile = "./samples/gopher.jpg"
+	testFile = "./examples/gopher.jpg"
 )
 
 type SubImager interface {
@@ -52,14 +52,14 @@ func TestCrop(t *testing.T) {
 
 	img, _, err := image.Decode(fi)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	topCrop, err := SmartCrop(img, 250, 250)
 	if err != nil {
 		t.Error(err)
 	}
-	want := image.Rect(196, 42, 580, 427)
+	want := image.Rect(717, 42, 1101, 427)
 	if topCrop != want {
 		t.Fatalf("want %v, got %v", want, topCrop)
 	}
@@ -67,9 +67,8 @@ func TestCrop(t *testing.T) {
 	sub, ok := img.(SubImager)
 	if ok {
 		cropImage := sub.SubImage(topCrop)
-		//		cropImage := sub.SubImage(image.Rect(topCrop.X, topCrop.Y, topCrop.Width+topCrop.X, topCrop.Height+topCrop.Y))
+		// cropImage := sub.SubImage(image.Rect(topCrop.X, topCrop.Y, topCrop.Width+topCrop.X, topCrop.Height+topCrop.Y))
 		writeImage("jpeg", cropImage, "./smartcrop.jpg")
-
 	} else {
 		t.Error(errors.New("No SubImage support"))
 	}
@@ -94,12 +93,11 @@ func BenchmarkCrop(b *testing.B) {
 }
 
 func BenchmarkEdge(b *testing.B) {
-	fname := "24391757.jpg"
-	fi, _ := os.Open("./samples/" + fname)
+	fi, _ := os.Open(testFile)
 	defer fi.Close()
 	img, _, err := image.Decode(fi)
 	if err != nil {
-		b.Error(err)
+		b.Fatal(err)
 	}
 
 	rgbaImg := toRGBA(img)
@@ -111,18 +109,15 @@ func BenchmarkEdge(b *testing.B) {
 }
 
 func BenchmarkImageDir(b *testing.B) {
-	b.StopTimer()
-
-	files, err := ioutil.ReadDir("./samples/hatchet")
+	files, err := ioutil.ReadDir("./examples")
 	if err != nil {
 		b.Error(err)
 	}
 
-	b.StartTimer()
+	b.ResetTimer()
 	for _, file := range files {
 		if strings.Contains(file.Name(), ".jpg") {
-
-			fi, _ := os.Open("./samples/hatchet/" + file.Name())
+			fi, _ := os.Open("./examples/" + file.Name())
 			defer fi.Close()
 
 			img, _, err := image.Decode(fi)
@@ -139,12 +134,12 @@ func BenchmarkImageDir(b *testing.B) {
 			sub, ok := img.(SubImager)
 			if ok {
 				cropImage := sub.SubImage(topCrop)
-				//				cropImage := sub.SubImage(image.Rect(topCrop.X, topCrop.Y, topCrop.Width+topCrop.X, topCrop.Height+topCrop.Y))
+				// cropImage := sub.SubImage(image.Rect(topCrop.X, topCrop.Y, topCrop.Width+topCrop.X, topCrop.Height+topCrop.Y))
 				writeImage("jpeg", cropImage, "/tmp/smartcrop/smartcrop-"+file.Name())
 			} else {
 				b.Error(errors.New("No SubImage support"))
 			}
 		}
 	}
-	//fmt.Println("average time/image:", b.t
+	// fmt.Println("average time/image:", b.t)
 }
