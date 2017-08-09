@@ -49,7 +49,7 @@ func main() {
         type SubImager interface {
                 SubImage(r image.Rectangle) image.Image
         }
-        img.(SubImager).SubImage(topCrop)
+        croppedimg := img.(SubImager).SubImage(topCrop)
         ...
 }
 ```
