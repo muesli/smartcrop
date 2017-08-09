@@ -462,6 +462,7 @@ func crops(i image.Image, cropWidth, cropHeight, realMinScale float64) []Crop {
 	return res
 }
 
+// toRGBA converts an image.Image to an image.RGBA
 func toRGBA(img image.Image) *image.RGBA {
 	switch img.(type) {
 	case *image.RGBA:
