@@ -57,7 +57,7 @@ func TestCrop(t *testing.T) {
 
 	topCrop, err := SmartCrop(img, 250, 250)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	want := image.Rect(717, 42, 1101, 427)
 	if topCrop != want {
@@ -80,10 +80,12 @@ func BenchmarkCrop(b *testing.B) {
 		b.Fatal(err)
 	}
 	defer fi.Close()
+
 	img, _, err := image.Decode(fi)
 	if err != nil {
 		b.Fatal(err)
 	}
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		if _, err := SmartCrop(img, 250, 250); err != nil {
@@ -93,8 +95,12 @@ func BenchmarkCrop(b *testing.B) {
 }
 
 func BenchmarkEdge(b *testing.B) {
-	fi, _ := os.Open(testFile)
+	fi, err := os.Open(testFile)
+	if err != nil {
+		b.Fatal(err)
+	}
 	defer fi.Close()
+
 	img, _, err := image.Decode(fi)
 	if err != nil {
 		b.Fatal(err)
@@ -111,7 +117,7 @@ func BenchmarkEdge(b *testing.B) {
 func BenchmarkImageDir(b *testing.B) {
 	files, err := ioutil.ReadDir("./examples")
 	if err != nil {
-		b.Error(err)
+		b.Fatal(err)
 	}
 
 	b.ResetTimer()
@@ -123,11 +129,13 @@ func BenchmarkImageDir(b *testing.B) {
 			img, _, err := image.Decode(fi)
 			if err != nil {
 				b.Error(err)
+				continue
 			}
 
 			topCrop, err := SmartCrop(img, 220, 220)
 			if err != nil {
 				b.Error(err)
+				continue
 			}
 			fmt.Printf("Top crop: %+v\n", topCrop)
 
