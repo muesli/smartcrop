@@ -44,11 +44,11 @@ import (
 	"github.com/nfnt/resize"
 )
 
-var skinColor = [3]float64{0.78, 0.57, 0.44}
-
 var (
 	// ErrInvalidDimensions gets returned when the supplied dimensions are invalid
 	ErrInvalidDimensions = errors.New("Expect either a height or width")
+
+	skinColor = [3]float64{0.78, 0.57, 0.44}
 )
 
 const (
@@ -63,18 +63,17 @@ const (
 	saturationThreshold     = 0.4
 	saturationBias          = 0.2
 	saturationWeight        = 0.3
-	scoreDownSample         = 8
-	// step * minscale rounded down to the next power of two should be good
-	step              = 8
-	scaleStep         = 0.1
-	minScale          = 0.9
-	maxScale          = 1.0
-	edgeRadius        = 0.4
-	edgeWeight        = -20.0
-	outsideImportance = -0.5
-	ruleOfThirds      = true
-	prescale          = true
-	prescaleMin       = 400.00
+	scoreDownSample         = 8 // step * minscale rounded down to the next power of two should be good
+	step                    = 8
+	scaleStep               = 0.1
+	minScale                = 0.9
+	maxScale                = 1.0
+	edgeRadius              = 0.4
+	edgeWeight              = -20.0
+	outsideImportance       = -0.5
+	ruleOfThirds            = true
+	prescale                = true
+	prescaleMin             = 400.00
 )
 
 // Score contains values that classify matches
