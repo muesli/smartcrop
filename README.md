@@ -45,6 +45,9 @@ func main() {
 
 Also see the test cases in crop_test.go for further working examples.
 
+## Sample Data
+You can find a bunch of test images for the algorithm [here](https://github.com/muesli/smartcrop-samples).
+
 ## Development
 API docs can be found [here](http://godoc.org/github.com/muesli/smartcrop).
 
