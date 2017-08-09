@@ -255,31 +255,6 @@ func score(output *image.RGBA, crop Crop) Score {
 	return score
 }
 
-func drawDebugCrop(topCrop Crop, o *image.RGBA) {
-	width := o.Bounds().Dx()
-	height := o.Bounds().Dy()
-
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
-			r, g, b, _ := o.At(x, y).RGBA()
-			r8 := float64(r >> 8)
-			g8 := float64(g >> 8)
-			b8 := uint8(b >> 8)
-
-			imp := importance(topCrop, x, y)
-
-			if imp > 0 {
-				g8 += imp * 32
-			} else if imp < 0 {
-				r8 += imp * -64
-			}
-
-			nc := color.RGBA{uint8(bounds(r8)), uint8(bounds(g8)), b8, 255}
-			o.SetRGBA(x, y, nc)
-		}
-	}
-}
-
 func analyse(settings CropSettings, img *image.RGBA, cropWidth, cropHeight, realMinScale float64) (image.Rectangle, error) {
 	o := image.NewRGBA(img.Bounds())
 
