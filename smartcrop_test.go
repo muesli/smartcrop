@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Christian Muehlhaeuser
+ * Copyright (c) 2014-2017 Christian Muehlhaeuser
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -59,7 +59,7 @@ func TestCrop(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := image.Rect(717, 42, 1101, 427)
+	want := image.Rect(464, 24, 719, 279)
 	if topCrop != want {
 		t.Fatalf("want %v, got %v", want, topCrop)
 	}
