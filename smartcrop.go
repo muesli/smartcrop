@@ -87,11 +87,8 @@ type Score struct {
 
 // Crop contains results
 type Crop struct {
-	X      int
-	Y      int
-	Width  int
-	Height int
-	Score  Score
+	image.Rectangle
+	Score Score
 }
 
 // CropSettings contains options to change cropping behaviour
@@ -134,23 +131,22 @@ func (o smartcropAnalyzer) FindBestCrop(img image.Image, width, height int) (ima
 		return image.Rectangle{}, ErrInvalidDimensions
 	}
 
-	scale := math.Min(float64(img.Bounds().Size().X)/float64(width), float64(img.Bounds().Size().Y)/float64(height))
-
 	// resize image for faster processing
+	scale := math.Min(float64(img.Bounds().Dx())/float64(width), float64(img.Bounds().Dy())/float64(height))
 	var lowimg *image.RGBA
 	var prescalefactor = 1.0
 
 	if prescale {
-		//if f := 1.0 / scale / minScale; f < 1.0 {
-		//	prescalefactor = f
-		//}
-		if f := prescaleMin / math.Min(float64(img.Bounds().Size().X), float64(img.Bounds().Size().Y)); f < 1.0 {
+		// if f := 1.0 / scale / minScale; f < 1.0 {
+		// prescalefactor = f
+		// }
+		if f := prescaleMin / math.Min(float64(img.Bounds().Dx()), float64(img.Bounds().Dy())); f < 1.0 {
 			prescalefactor = f
 		}
 		o.cropSettings.Log.Println(prescalefactor)
 
 		smallimg := resize.Resize(
-			uint(float64(img.Bounds().Size().X)*prescalefactor),
+			uint(float64(img.Bounds().Dx())*prescalefactor),
 			0,
 			img,
 			o.cropSettings.InterpolationType)
@@ -166,7 +162,7 @@ func (o smartcropAnalyzer) FindBestCrop(img image.Image, width, height int) (ima
 	cropWidth, cropHeight := chop(float64(width)*scale*prescalefactor), chop(float64(height)*scale*prescalefactor)
 	realMinScale := math.Min(maxScale, math.Max(1.0/scale, minScale))
 
-	o.cropSettings.Log.Printf("original resolution: %dx%d\n", img.Bounds().Size().X, img.Bounds().Size().Y)
+	o.cropSettings.Log.Printf("original resolution: %dx%d\n", img.Bounds().Dx(), img.Bounds().Dy())
 	o.cropSettings.Log.Printf("scale: %f, cropw: %f, croph: %f, minscale: %f\n", scale, cropWidth, cropHeight, realMinScale)
 
 	topCrop, err := analyse(o.cropSettings, lowimg, cropWidth, cropHeight, realMinScale)
@@ -208,12 +204,12 @@ func bounds(l float64) float64 {
 }
 
 func importance(crop Crop, x, y int) float64 {
-	if crop.X > x || x >= crop.X+crop.Width || crop.Y > y || y >= crop.Y+crop.Height {
+	if crop.Min.X > x || x >= crop.Max.X || crop.Min.Y > y || y >= crop.Max.Y {
 		return outsideImportance
 	}
 
-	xf := float64(x-crop.X) / float64(crop.Width)
-	yf := float64(y-crop.Y) / float64(crop.Height)
+	xf := float64(x-crop.Min.X) / float64(crop.Dx())
+	yf := float64(y-crop.Min.Y) / float64(crop.Dy())
 
 	px := math.Abs(0.5-xf) * 2.0
 	py := math.Abs(0.5-yf) * 2.0
@@ -231,8 +227,8 @@ func importance(crop Crop, x, y int) float64 {
 }
 
 func score(output *image.RGBA, crop Crop) Score {
-	height := (*output).Bounds().Size().Y
-	width := (*output).Bounds().Size().X
+	width := output.Bounds().Dx()
+	height := output.Bounds().Dy()
 	score := Score{}
 
 	// same loops but with downsampling
@@ -255,16 +251,16 @@ func score(output *image.RGBA, crop Crop) Score {
 		}
 	}
 
-	score.Total = (score.Detail*detailWeight + score.Skin*skinWeight + score.Saturation*saturationWeight) / float64(crop.Width) / float64(crop.Height)
+	score.Total = (score.Detail*detailWeight + score.Skin*skinWeight + score.Saturation*saturationWeight) / float64(crop.Dx()) / float64(crop.Dy())
 	return score
 }
 
 func drawDebugCrop(topCrop Crop, o *image.RGBA) {
-	w := o.Bounds().Size().X
-	h := o.Bounds().Size().Y
+	width := o.Bounds().Dx()
+	height := o.Bounds().Dy()
 
-	for y := 0; y < h; y++ {
-		for x := 0; x < w; x++ {
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
 			r, g, b, _ := o.At(x, y).RGBA()
 			r8 := float64(r >> 8)
 			g8 := float64(g >> 8)
@@ -325,7 +321,7 @@ func analyse(settings CropSettings, img *image.RGBA, cropWidth, cropHeight, real
 		debugOutput(true, o, "final")
 	}
 
-	return image.Rect(topCrop.X, topCrop.Y, topCrop.X+topCrop.Width, topCrop.Y+topCrop.Height), nil
+	return topCrop.Rectangle, nil
 }
 
 func saturation(c color.RGBA) float64 {
@@ -382,12 +378,12 @@ func skinCol(c color.RGBA) float64 {
 }
 
 func makeCies(img *image.RGBA) []float64 {
-	w := img.Bounds().Size().X
-	h := img.Bounds().Size().Y
-	cies := make([]float64, h*w, h*w)
+	width := img.Bounds().Dx()
+	height := img.Bounds().Dy()
+	cies := make([]float64, width*height, width*height)
 	i := 0
-	for y := 0; y < h; y++ {
-		for x := 0; x < w; x++ {
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
 			cies[i] = cie(img.RGBAAt(x, y))
 			i++
 		}
@@ -397,22 +393,22 @@ func makeCies(img *image.RGBA) []float64 {
 }
 
 func edgeDetect(i *image.RGBA, o *image.RGBA) {
-	w := i.Bounds().Size().X
-	h := i.Bounds().Size().Y
+	width := i.Bounds().Dx()
+	height := i.Bounds().Dy()
 	cies := makeCies(i)
 
 	var lightness float64
-	for y := 0; y < h; y++ {
-		for x := 0; x < w; x++ {
-			if x == 0 || x >= w-1 || y == 0 || y >= h-1 {
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			if x == 0 || x >= width-1 || y == 0 || y >= height-1 {
 				//lightness = cie((*i).At(x, y))
 				lightness = 0
 			} else {
-				lightness = cies[y*w+x]*4.0 -
-					cies[x+(y-1)*w] -
-					cies[x-1+y*w] -
-					cies[x+1+y*w] -
-					cies[x+(y+1)*w]
+				lightness = cies[y*width+x]*4.0 -
+					cies[x+(y-1)*width] -
+					cies[x-1+y*width] -
+					cies[x+1+y*width] -
+					cies[x+(y+1)*width]
 			}
 
 			nc := color.RGBA{0, uint8(bounds(lightness)), 0, 255}
@@ -422,11 +418,11 @@ func edgeDetect(i *image.RGBA, o *image.RGBA) {
 }
 
 func skinDetect(i *image.RGBA, o *image.RGBA) {
-	w := i.Bounds().Size().X
-	h := i.Bounds().Size().Y
+	width := i.Bounds().Dx()
+	height := i.Bounds().Dy()
 
-	for y := 0; y < h; y++ {
-		for x := 0; x < w; x++ {
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
 			lightness := cie(i.RGBAAt(x, y)) / 255.0
 			skin := skinCol(i.RGBAAt(x, y))
 
@@ -444,11 +440,11 @@ func skinDetect(i *image.RGBA, o *image.RGBA) {
 }
 
 func saturationDetect(i *image.RGBA, o *image.RGBA) {
-	w := i.Bounds().Size().X
-	h := i.Bounds().Size().Y
+	width := i.Bounds().Dx()
+	height := i.Bounds().Dy()
 
-	for y := 0; y < h; y++ {
-		for x := 0; x < w; x++ {
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
 			lightness := cie(i.RGBAAt(x, y)) / 255.0
 			saturation := saturation(i.RGBAAt(x, y))
 
@@ -467,8 +463,8 @@ func saturationDetect(i *image.RGBA, o *image.RGBA) {
 
 func crops(i image.Image, cropWidth, cropHeight, realMinScale float64) []Crop {
 	res := []Crop{}
-	width := i.Bounds().Size().X
-	height := i.Bounds().Size().Y
+	width := i.Bounds().Dx()
+	height := i.Bounds().Dy()
 
 	minDimension := math.Min(float64(width), float64(height))
 	var cropW, cropH float64
@@ -488,10 +484,7 @@ func crops(i image.Image, cropWidth, cropHeight, realMinScale float64) []Crop {
 		for y := 0; float64(y)+cropH*scale <= float64(height); y += step {
 			for x := 0; float64(x)+cropW*scale <= float64(width); x += step {
 				res = append(res, Crop{
-					X:      x,
-					Y:      y,
-					Width:  int(cropW * scale),
-					Height: int(cropH * scale),
+					Rectangle: image.Rect(x, y, x+int(cropW*scale), y+int(cropH*scale)),
 				})
 			}
 		}
