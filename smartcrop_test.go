@@ -22,6 +22,7 @@
  *	Authors:
  *		Christian Muehlhaeuser <muesli@gmail.com>
  *		Michael Wendland <michael@michiwend.com>
+ *		Bjørn Erik Pedersen <bjorn.erik.pedersen@gmail.com>
  */
 
 package smartcrop
@@ -36,11 +37,19 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/muesli/smartcrop/nfnt"
 )
 
 var (
 	testFile = "./examples/gopher.jpg"
 )
+
+// Moved here and unexported to decouple the resizer implementation.
+func smartCrop(img image.Image, width, height int) (image.Rectangle, error) {
+	analyzer := NewAnalyzer(nfnt.NewDefaultResizer())
+	return analyzer.FindBestCrop(img, width, height)
+}
 
 type SubImager interface {
 	SubImage(r image.Rectangle) image.Image
@@ -55,7 +64,7 @@ func TestCrop(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	topCrop, err := SmartCrop(img, 250, 250)
+	topCrop, err := smartCrop(img, 250, 250)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,7 +97,7 @@ func BenchmarkCrop(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := SmartCrop(img, 250, 250); err != nil {
+		if _, err := smartCrop(img, 250, 250); err != nil {
 			b.Error(err)
 		}
 	}
@@ -132,7 +141,7 @@ func BenchmarkImageDir(b *testing.B) {
 				continue
 			}
 
-			topCrop, err := SmartCrop(img, 220, 220)
+			topCrop, err := smartCrop(img, 220, 220)
 			if err != nil {
 				b.Error(err)
 				continue

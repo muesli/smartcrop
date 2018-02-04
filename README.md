@@ -29,29 +29,30 @@ To compile it from source:
 package main
 
 import (
-        "fmt"
-        "image"
-        _ "image/png"
-        "os"
+	"fmt"
+	"image"
+	_ "image/png"
+	"os"
 
-        "github.com/muesli/smartcrop"
+	"github.com/muesli/smartcrop"
+	"github.com/muesli/smartcrop/nfnt"
 )
 
 func main() {
-        f, _ := os.Open("image.png")
-        img, _, _ := image.Decode(f)
+	f, _ := os.Open("image.png")
+	img, _, _ := image.Decode(f)
 
-        analyzer := smartcrop.NewAnalyzer()
-        topCrop, _ := analyzer.FindBestCrop(img, 250, 250)
+	analyzer := smartcrop.NewAnalyzer(nfnt.NewDefaultResizer())
+	topCrop, _ := analyzer.FindBestCrop(img, 250, 250)
 
-        // The crop will have the requested aspect ratio, but you need to copy/scale it yourself
-        fmt.Printf("Top crop: %+v\n", topCrop)
+	// The crop will have the requested aspect ratio, but you need to copy/scale it yourself
+	fmt.Printf("Top crop: %+v\n", topCrop)
 
-        type SubImager interface {
-                SubImage(r image.Rectangle) image.Image
-        }
-        croppedimg := img.(SubImager).SubImage(topCrop)
-        ...
+	type SubImager interface {
+		SubImage(r image.Rectangle) image.Image
+	}
+	croppedimg := img.(SubImager).SubImage(topCrop)
+	// ...
 }
 ```
 
