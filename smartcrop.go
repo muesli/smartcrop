@@ -81,6 +81,7 @@ const (
 // width and height returns an error if invalid
 type Analyzer interface {
 	FindBestCrop(img image.Image, width, height int) (image.Rectangle, error)
+	SetDetectors(ds []Detector)
 }
 
 // Score contains values that classify matches
@@ -112,7 +113,8 @@ type Detector interface {
 }
 
 type smartcropAnalyzer struct {
-	logger Logger
+	detectors []Detector
+	logger    Logger
 	options.Resizer
 }
 
@@ -130,7 +132,19 @@ func NewAnalyzerWithLogger(resizer options.Resizer, logger Logger) Analyzer {
 	if logger.Log == nil {
 		logger.Log = log.New(ioutil.Discard, "", 0)
 	}
-	return &smartcropAnalyzer{Resizer: resizer, logger: logger}
+
+	// Set default detectors here
+	detectors := []Detector{
+		&EdgeDetector{},
+		&SkinDetector{},
+		&SaturationDetector{},
+	}
+
+	return &smartcropAnalyzer{detectors: detectors, Resizer: resizer, logger: logger}
+}
+
+func (o *smartcropAnalyzer) SetDetectors(ds []Detector) {
+	o.detectors = ds
 }
 
 func (o smartcropAnalyzer) FindBestCrop(img image.Image, width, height int) (image.Rectangle, error) {
@@ -172,7 +186,7 @@ func (o smartcropAnalyzer) FindBestCrop(img image.Image, width, height int) (ima
 	o.logger.Log.Printf("original resolution: %dx%d\n", img.Bounds().Dx(), img.Bounds().Dy())
 	o.logger.Log.Printf("scale: %f, cropw: %f, croph: %f, minscale: %f\n", scale, cropWidth, cropHeight, realMinScale)
 
-	topCrop, err := analyse(o.logger, lowimg, cropWidth, cropHeight, realMinScale)
+	topCrop, err := analyse(o.logger, o.detectors, lowimg, cropWidth, cropHeight, realMinScale)
 	if err != nil {
 		return topCrop, err
 	}
@@ -260,12 +274,6 @@ func score(output *image.RGBA, crop Crop) Score {
 
 func analyse(logger Logger, detectors []Detector, img *image.RGBA, cropWidth, cropHeight, realMinScale float64) (image.Rectangle, error) {
 	o := image.NewRGBA(img.Bounds())
-
-	detectors := []Detector{
-		&EdgeDetector{},
-		&SkinDetector{},
-		&SaturationDetector{},
-	}
 
 	/*
 		Run each detector. They write to R (skin), G (features) and B (saturation) channels on image 'o'.
