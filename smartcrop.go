@@ -54,7 +54,7 @@ var (
 
 const (
 	detailWeight            = 0.2
-	skinBias                = 0.01
+	skinBias                = 0.9
 	skinBrightnessMin       = 0.2
 	skinBrightnessMax       = 1.0
 	skinThreshold           = 0.8
