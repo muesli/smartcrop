@@ -10,6 +10,7 @@ import (
 
 	"github.com/svkoskin/smartcrop"
 	"github.com/svkoskin/smartcrop/nfnt"
+	//	"github.com/svkoskin/smartcrop/gocv"
 )
 
 func main() {
@@ -27,6 +28,17 @@ func main() {
 	}
 
 	analyzer := smartcrop.NewAnalyzerWithLogger(nfnt.NewDefaultResizer(), l)
+
+	/*
+		To replace skin detection with gocv-based face detection:
+
+		analyzer.SetDetectors([]smartcrop.Detector{
+			&smartcrop.EdgeDetector{},
+			&gocv.FaceDetector{"./cascade.xml", true},
+			&smartcrop.SaturationDetector{},
+		})
+	*/
+
 	topCrop, _ := analyzer.FindBestCrop(img, 300, 200)
 
 	// The crop will have the requested aspect ratio, but you need to copy/scale it yourself
