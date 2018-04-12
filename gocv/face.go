@@ -9,6 +9,7 @@ import (
 
 	"github.com/llgcode/draw2d/draw2dimg"
 	"github.com/llgcode/draw2d/draw2dkit"
+	"gocv.io/x/gocv"
 )
 
 type FaceDetector struct {
@@ -21,8 +22,12 @@ func (d *FaceDetector) Name() string {
 }
 
 func (d *FaceDetector) Detect(i *image.RGBA, o *image.RGBA) error {
-	// TODO: Fix to use gocv
-
+	if i == nil {
+		return fmt.Errorf("i can't be nil")
+	}
+	if o == nil {
+		return fmt.Errorf("o can't be nil")
+	}
 	if d.FaceDetectionHaarCascadeFilepath == "" {
 		return fmt.Errorf("FaceDetector's FaceDetectionHaarCascadeFilepath not specified")
 	}
@@ -31,13 +36,18 @@ func (d *FaceDetector) Detect(i *image.RGBA, o *image.RGBA) error {
 	if err != nil {
 		return err
 	}
-	cascade := opencv.LoadHaarClassifierCascade(d.FaceDetectionHaarCascadeFilepath)
-	defer cascade.Release()
 
-	cvImage := opencv.FromImage(i)
-	defer cvImage.Release()
+	classifier := gocv.NewCascadeClassifier()
+	defer classifier.Close()
+	if !classifier.Load(d.FaceDetectionHaarCascadeFilepath) {
+		return fmt.Errorf("FaceDetector failed loading cascade file")
+	}
 
-	faces := cascade.DetectObjects(cvImage)
+	// image.NRGBA-compatible params
+	cvMat := gocv.NewMatFromBytes(i.Rect.Dy(), i.Rect.Dx(), gocv.MatTypeCV8UC4, i.Pix)
+	defer cvMat.Close()
+
+	faces := classifier.DetectMultiScale(cvMat)
 
 	gc := draw2dimg.NewGraphicContext(o)
 
@@ -46,15 +56,24 @@ func (d *FaceDetector) Detect(i *image.RGBA, o *image.RGBA) error {
 	}
 
 	for _, face := range faces {
+		// Upper left corner of detected face-rectangle
+		x := face.Min.X
+		y := face.Min.Y
+
+		width := face.Dx()
+		height := face.Dy()
+
 		if d.DebugMode == true {
-			log.Printf("Face: x: %d y: %d w: %d h: %d\n", face.X(), face.Y(), face.Width(), face.Height())
+			log.Printf("Face: x: %d y: %d w: %d h: %d\n", x, y, width, height)
 		}
+
+		// Draw a filled circle where the face is
 		draw2dkit.Ellipse(
 			gc,
-			float64(face.X()+(face.Width()/2)),
-			float64(face.Y()+(face.Height()/2)),
-			float64(face.Width()/2),
-			float64(face.Height())/2)
+			float64(x+(width/2)),
+			float64(y+(height/2)),
+			float64(width/2),
+			float64(height)/2)
 		gc.SetFillColor(color.RGBA{255, 0, 0, 255})
 		gc.Fill()
 	}
