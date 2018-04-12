@@ -118,8 +118,9 @@ func BenchmarkEdge(b *testing.B) {
 	rgbaImg := toRGBA(img)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
+		d := EdgeDetector{}
 		o := image.NewRGBA(img.Bounds())
-		edgeDetect(rgbaImg, o)
+		d.Detect(rgbaImg, o)
 	}
 }
 

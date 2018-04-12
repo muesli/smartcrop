@@ -102,6 +102,15 @@ type Logger struct {
 	Log       *log.Logger
 }
 
+/*
+	Detector contains a method that detects either skin, features or saturation. Its Detect method writes
+	the detected skin, features or saturation to red, green and blue channels, respectively.
+*/
+type Detector interface {
+	Name() string
+	Detect(original *image.RGBA, sharedResult *image.RGBA) error
+}
+
 type smartcropAnalyzer struct {
 	logger Logger
 	options.Resizer
@@ -249,25 +258,30 @@ func score(output *image.RGBA, crop Crop) Score {
 	return score
 }
 
-func analyse(logger Logger, img *image.RGBA, cropWidth, cropHeight, realMinScale float64) (image.Rectangle, error) {
+func analyse(logger Logger, detectors []Detector, img *image.RGBA, cropWidth, cropHeight, realMinScale float64) (image.Rectangle, error) {
 	o := image.NewRGBA(img.Bounds())
 
+	detectors := []Detector{
+		&EdgeDetector{},
+		&SkinDetector{},
+		&SaturationDetector{},
+	}
+
+	/*
+		Run each detector. They write to R (skin), G (features) and B (saturation) channels on image 'o'.
+		The score function will use that information.
+	*/
+	for _, d := range detectors {
+		start := time.Now()
+		err := d.Detect(img, o)
+		if err != nil {
+			return image.Rectangle{}, err
+		}
+		logger.Log.Printf("Time elapsed detecting %s: %s\n", d.Name(), time.Since(start))
+		debugOutput(logger.DebugMode, o, d.Name())
+	}
+
 	now := time.Now()
-	edgeDetect(img, o)
-	logger.Log.Println("Time elapsed edge:", time.Since(now))
-	debugOutput(logger.DebugMode, o, "edge")
-
-	now = time.Now()
-	skinDetect(img, o)
-	logger.Log.Println("Time elapsed skin:", time.Since(now))
-	debugOutput(logger.DebugMode, o, "skin")
-
-	now = time.Now()
-	saturationDetect(img, o)
-	logger.Log.Println("Time elapsed sat:", time.Since(now))
-	debugOutput(logger.DebugMode, o, "saturation")
-
-	now = time.Now()
 	var topCrop Crop
 	topScore := -1.0
 	cs := crops(o, cropWidth, cropHeight, realMinScale)
@@ -361,7 +375,13 @@ func makeCies(img *image.RGBA) []float64 {
 	return cies
 }
 
-func edgeDetect(i *image.RGBA, o *image.RGBA) {
+type EdgeDetector struct{}
+
+func (d *EdgeDetector) Name() string {
+	return "edge"
+}
+
+func (d *EdgeDetector) Detect(i *image.RGBA, o *image.RGBA) error {
 	width := i.Bounds().Dx()
 	height := i.Bounds().Dy()
 	cies := makeCies(i)
@@ -384,9 +404,16 @@ func edgeDetect(i *image.RGBA, o *image.RGBA) {
 			o.SetRGBA(x, y, nc)
 		}
 	}
+	return nil
 }
 
-func skinDetect(i *image.RGBA, o *image.RGBA) {
+type SkinDetector struct{}
+
+func (d *SkinDetector) Name() string {
+	return "skin"
+}
+
+func (d *SkinDetector) Detect(i *image.RGBA, o *image.RGBA) error {
 	width := i.Bounds().Dx()
 	height := i.Bounds().Dy()
 
@@ -406,9 +433,16 @@ func skinDetect(i *image.RGBA, o *image.RGBA) {
 			}
 		}
 	}
+	return nil
 }
 
-func saturationDetect(i *image.RGBA, o *image.RGBA) {
+type SaturationDetector struct{}
+
+func (d *SaturationDetector) Name() string {
+	return "saturation"
+}
+
+func (d *SaturationDetector) Detect(i *image.RGBA, o *image.RGBA) error {
 	width := i.Bounds().Dx()
 	height := i.Bounds().Dy()
 
@@ -428,6 +462,7 @@ func saturationDetect(i *image.RGBA, o *image.RGBA) {
 			}
 		}
 	}
+	return nil
 }
 
 func crops(i image.Image, cropWidth, cropHeight, realMinScale float64) []Crop {
