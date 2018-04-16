@@ -30,8 +30,8 @@ package nfnt
 import (
 	"image"
 
+	"github.com/muesli/smartcrop/options"
 	"github.com/nfnt/resize"
-	"github.com/svkoskin/smartcrop/options"
 )
 
 type nfntResizer struct {
