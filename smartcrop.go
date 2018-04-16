@@ -40,10 +40,10 @@ import (
 	"math"
 	"time"
 
-	sclogger "github.com/svkoskin/smartcrop/logger"
-	"github.com/svkoskin/smartcrop/options"
-
 	"golang.org/x/image/draw"
+
+	sclogger "github.com/muesli/smartcrop/logger"
+	"github.com/muesli/smartcrop/options"
 )
 
 var (

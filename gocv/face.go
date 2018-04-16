@@ -7,7 +7,7 @@ import (
 
 	"gocv.io/x/gocv"
 
-	sclogger "github.com/svkoskin/smartcrop/logger"
+	sclogger "github.com/muesli/smartcrop/logger"
 )
 
 type FaceDetector struct {

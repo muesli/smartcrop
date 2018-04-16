@@ -8,10 +8,10 @@ import (
 	"log"
 	"os"
 
-	"github.com/svkoskin/smartcrop"
-	sclogger "github.com/svkoskin/smartcrop/logger"
-	"github.com/svkoskin/smartcrop/nfnt"
-	//	"github.com/svkoskin/smartcrop/gocv"
+	"github.com/muesli/smartcrop"
+	sclogger "github.com/muesli/smartcrop/logger"
+	"github.com/muesli/smartcrop/nfnt"
+	//	"github.com/muesli/smartcrop/gocv"
 )
 
 func main() {
