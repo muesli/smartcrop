@@ -3,15 +3,16 @@ package gocv
 import (
 	"fmt"
 	"image"
-	"log"
 	"os"
 
 	"gocv.io/x/gocv"
+
+	sclogger "github.com/svkoskin/smartcrop/logger"
 )
 
 type FaceDetector struct {
 	FaceDetectionHaarCascadeFilepath string
-	DebugMode                        bool
+	Logger                           *sclogger.Logger
 }
 
 func (d *FaceDetector) Name() string {
@@ -56,8 +57,8 @@ func (d *FaceDetector) Detect(img *image.RGBA) ([][]uint8, error) {
 
 	faces := classifier.DetectMultiScale(cvMat)
 
-	if d.DebugMode == true {
-		log.Println("Faces detected:", len(faces))
+	if d.Logger.DebugMode == true {
+		d.Logger.Log.Printf("Number of faces detected: %d\n", len(faces))
 	}
 
 	for _, face := range faces {
@@ -68,8 +69,8 @@ func (d *FaceDetector) Detect(img *image.RGBA) ([][]uint8, error) {
 		width := face.Dx()
 		height := face.Dy()
 
-		if d.DebugMode == true {
-			log.Printf("Face: x: %d y: %d w: %d h: %d\n", x, y, width, height)
+		if d.Logger.DebugMode == true {
+			d.Logger.Log.Printf("Face: x: %d y: %d w: %d h: %d\n", x, y, width, height)
 		}
 
 		// Mark the rectangle in our [][]uint8 result

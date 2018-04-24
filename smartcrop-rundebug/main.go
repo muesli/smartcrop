@@ -9,6 +9,7 @@ import (
 	"os"
 
 	"github.com/svkoskin/smartcrop"
+	sclogger "github.com/svkoskin/smartcrop/logger"
 	"github.com/svkoskin/smartcrop/nfnt"
 	//	"github.com/svkoskin/smartcrop/gocv"
 )
@@ -22,7 +23,7 @@ func main() {
 	f, _ := os.Open(os.Args[1])
 	img, _, _ := image.Decode(f)
 
-	l := smartcrop.Logger{
+	l := sclogger.Logger{
 		DebugMode: true,
 		Log:       log.New(os.Stderr, "", 0),
 	}

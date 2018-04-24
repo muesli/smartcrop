@@ -40,6 +40,7 @@ import (
 	"math"
 	"time"
 
+	sclogger "github.com/svkoskin/smartcrop/logger"
 	"github.com/svkoskin/smartcrop/options"
 
 	"golang.org/x/image/draw"
@@ -97,12 +98,6 @@ type Crop struct {
 	Score Score
 }
 
-// Logger contains a logger.
-type Logger struct {
-	DebugMode bool
-	Log       *log.Logger
-}
-
 /*
 	DetailDetector detects detail that Detectors can use.
 */
@@ -125,13 +120,13 @@ type Detector interface {
 type smartcropAnalyzer struct {
 	detailDetector DetailDetector
 	detectors      []Detector
-	logger         Logger
+	logger         sclogger.Logger
 	options.Resizer
 }
 
 // NewAnalyzer returns a new Analyzer using the given Resizer.
 func NewAnalyzer(resizer options.Resizer) Analyzer {
-	logger := Logger{
+	logger := sclogger.Logger{
 		DebugMode: false,
 	}
 
@@ -139,7 +134,7 @@ func NewAnalyzer(resizer options.Resizer) Analyzer {
 }
 
 // NewAnalyzerWithLogger returns a new analyzer with the given Resizer and Logger.
-func NewAnalyzerWithLogger(resizer options.Resizer, logger Logger) Analyzer {
+func NewAnalyzerWithLogger(resizer options.Resizer, logger sclogger.Logger) Analyzer {
 	if logger.Log == nil {
 		logger.Log = log.New(ioutil.Discard, "", 0)
 	}
