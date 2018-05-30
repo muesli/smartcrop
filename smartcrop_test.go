@@ -29,7 +29,6 @@ package smartcrop
 
 import (
 	"errors"
-	"fmt"
 	"image"
 	_ "image/jpeg"
 	_ "image/png"
@@ -147,7 +146,6 @@ func BenchmarkImageDir(b *testing.B) {
 				b.Error(err)
 				continue
 			}
-			fmt.Printf("Top crop: %+v\n", topCrop)
 
 			sub, ok := img.(SubImager)
 			if ok {
@@ -159,5 +157,4 @@ func BenchmarkImageDir(b *testing.B) {
 			}
 		}
 	}
-	// fmt.Println("average time/image:", b.t)
 }
