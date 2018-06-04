@@ -110,15 +110,19 @@ type Logger struct {
 type DetailDetector interface {
 	Name() string
 	Detect(original *image.RGBA, sharedResult *image.RGBA) error
+	Weight() float64
 }
 
 /*
 	Detector contains a method that detects either skin, features or saturation. Its Detect method writes
 	the detected skin, features or saturation to red, green and blue channels, respectively.
+	Detector contains a method that detects features like skin or saturation.
 */
 type Detector interface {
 	Name() string
 	Detect(original *image.RGBA, sharedResult *image.RGBA) error
+	Bias() float64
+	Weight() float64
 }
 
 type smartcropAnalyzer struct {
@@ -413,6 +417,10 @@ func (d *EdgeDetector) Name() string {
 	return "edge"
 }
 
+func (d *EdgeDetector) Weight() float64 {
+	return detailWeight
+}
+
 func (d *EdgeDetector) Detect(i *image.RGBA, o *image.RGBA) error {
 	width := i.Bounds().Dx()
 	height := i.Bounds().Dy()
@@ -445,6 +453,14 @@ func (d *SkinDetector) Name() string {
 	return "skin"
 }
 
+func (d *SkinDetector) Bias() float64 {
+	return skinBias
+}
+
+func (d *SkinDetector) Weight() float64 {
+	return skinWeight
+}
+
 func (d *SkinDetector) Detect(i *image.RGBA, o *image.RGBA) error {
 	width := i.Bounds().Dx()
 	height := i.Bounds().Dy()
@@ -472,6 +488,14 @@ type SaturationDetector struct{}
 
 func (d *SaturationDetector) Name() string {
 	return "saturation"
+}
+
+func (d *SaturationDetector) Bias() float64 {
+	return saturationBias
+}
+
+func (d *SaturationDetector) Weight() float64 {
+	return saturationWeight
 }
 
 func (d *SaturationDetector) Detect(i *image.RGBA, o *image.RGBA) error {
