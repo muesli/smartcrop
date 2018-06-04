@@ -3,12 +3,9 @@ package gocv
 import (
 	"fmt"
 	"image"
-	"image/color"
 	"log"
 	"os"
 
-	"github.com/llgcode/draw2d/draw2dimg"
-	"github.com/llgcode/draw2d/draw2dkit"
 	"gocv.io/x/gocv"
 )
 
@@ -29,35 +26,35 @@ func (d *FaceDetector) Weight() float64 {
 	return 1.8
 }
 
-func (d *FaceDetector) Detect(i *image.RGBA, o *image.RGBA) error {
-	if i == nil {
-		return fmt.Errorf("i can't be nil")
+func (d *FaceDetector) Detect(img *image.RGBA) ([][]uint8, error) {
+	res := make([][]uint8, img.Bounds().Dx())
+	for x := range res {
+		res[x] = make([]uint8, img.Bounds().Dy())
 	}
-	if o == nil {
-		return fmt.Errorf("o can't be nil")
+
+	if img == nil {
+		return res, fmt.Errorf("img can't be nil")
 	}
 	if d.FaceDetectionHaarCascadeFilepath == "" {
-		return fmt.Errorf("FaceDetector's FaceDetectionHaarCascadeFilepath not specified")
+		return res, fmt.Errorf("FaceDetector's FaceDetectionHaarCascadeFilepath not specified")
 	}
 
 	_, err := os.Stat(d.FaceDetectionHaarCascadeFilepath)
 	if err != nil {
-		return err
+		return res, err
 	}
 
 	classifier := gocv.NewCascadeClassifier()
 	defer classifier.Close()
 	if !classifier.Load(d.FaceDetectionHaarCascadeFilepath) {
-		return fmt.Errorf("FaceDetector failed loading cascade file")
+		return res, fmt.Errorf("FaceDetector failed loading cascade file")
 	}
 
 	// image.NRGBA-compatible params
-	cvMat := gocv.NewMatFromBytes(i.Rect.Dy(), i.Rect.Dx(), gocv.MatTypeCV8UC4, i.Pix)
+	cvMat := gocv.NewMatFromBytes(img.Rect.Dy(), img.Rect.Dx(), gocv.MatTypeCV8UC4, img.Pix)
 	defer cvMat.Close()
 
 	faces := classifier.DetectMultiScale(cvMat)
-
-	gc := draw2dimg.NewGraphicContext(o)
 
 	if d.DebugMode == true {
 		log.Println("Faces detected:", len(faces))
@@ -75,15 +72,12 @@ func (d *FaceDetector) Detect(i *image.RGBA, o *image.RGBA) error {
 			log.Printf("Face: x: %d y: %d w: %d h: %d\n", x, y, width, height)
 		}
 
-		// Draw a filled circle where the face is
-		draw2dkit.Ellipse(
-			gc,
-			float64(x+(width/2)),
-			float64(y+(height/2)),
-			float64(width/2),
-			float64(height)/2)
-		gc.SetFillColor(color.RGBA{255, 0, 0, 255})
-		gc.Fill()
+		// Mark the rectangle in our [][]uint8 result
+		for i := 0; i < width; i++ {
+			for j := 0; j < height; j++ {
+				res[x+i][y+j] = 255
+			}
+		}
 	}
-	return nil
+	return res, nil
 }
