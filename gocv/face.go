@@ -21,6 +21,14 @@ func (d *FaceDetector) Name() string {
 	return "face"
 }
 
+func (d *FaceDetector) Bias() float64 {
+	return 0.9
+}
+
+func (d *FaceDetector) Weight() float64 {
+	return 1.8
+}
+
 func (d *FaceDetector) Detect(i *image.RGBA, o *image.RGBA) error {
 	if i == nil {
 		return fmt.Errorf("i can't be nil")
