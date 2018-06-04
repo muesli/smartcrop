@@ -81,6 +81,7 @@ const (
 // width and height returns an error if invalid
 type Analyzer interface {
 	FindBestCrop(img image.Image, width, height int) (image.Rectangle, error)
+	SetDetailDetector(d DetailDetector)
 	SetDetectors(ds []Detector)
 }
 
@@ -104,6 +105,14 @@ type Logger struct {
 }
 
 /*
+	DetailDetector detects detail that other Detectors can use.
+*/
+type DetailDetector interface {
+	Name() string
+	Detect(original *image.RGBA, sharedResult *image.RGBA) error
+}
+
+/*
 	Detector contains a method that detects either skin, features or saturation. Its Detect method writes
 	the detected skin, features or saturation to red, green and blue channels, respectively.
 */
@@ -113,8 +122,9 @@ type Detector interface {
 }
 
 type smartcropAnalyzer struct {
-	detectors []Detector
-	logger    Logger
+	detailDetector DetailDetector
+	detectors      []Detector
+	logger         Logger
 	options.Resizer
 }
 
@@ -134,17 +144,21 @@ func NewAnalyzerWithLogger(resizer options.Resizer, logger Logger) Analyzer {
 	}
 
 	// Set default detectors here
+	detailDetector := &EdgeDetector{}
 	detectors := []Detector{
-		&EdgeDetector{},
 		&SkinDetector{},
 		&SaturationDetector{},
 	}
 
-	return &smartcropAnalyzer{detectors: detectors, Resizer: resizer, logger: logger}
+	return &smartcropAnalyzer{detailDetector: detailDetector, detectors: detectors, Resizer: resizer, logger: logger}
 }
 
 func (o *smartcropAnalyzer) SetDetectors(ds []Detector) {
 	o.detectors = ds
+}
+
+func (o *smartcropAnalyzer) SetDetailDetector(d DetailDetector) {
+	o.detailDetector = d
 }
 
 func (o smartcropAnalyzer) FindBestCrop(img image.Image, width, height int) (image.Rectangle, error) {
@@ -279,6 +293,16 @@ func (a *smartcropAnalyzer) analyse(img *image.RGBA, cropWidth, cropHeight, real
 		Run each detector. They write to R (skin), G (features) and B (saturation) channels on image 'o'.
 		The score function will use that information.
 	*/
+
+	d := a.detailDetector
+	start := time.Now()
+	err := d.Detect(img, o)
+	if err != nil {
+		return image.Rectangle{}, err
+	}
+	a.logger.Log.Printf("Time elapsed detecting %s: %s\n", d.Name(), time.Since(start))
+	debugOutput(a.logger.DebugMode, o, d.Name())
+
 	for _, d := range a.detectors {
 		start := time.Now()
 		err := d.Detect(img, o)
