@@ -186,7 +186,7 @@ func (o smartcropAnalyzer) FindBestCrop(img image.Image, width, height int) (ima
 	o.logger.Log.Printf("original resolution: %dx%d\n", img.Bounds().Dx(), img.Bounds().Dy())
 	o.logger.Log.Printf("scale: %f, cropw: %f, croph: %f, minscale: %f\n", scale, cropWidth, cropHeight, realMinScale)
 
-	topCrop, err := analyse(o.logger, o.detectors, lowimg, cropWidth, cropHeight, realMinScale)
+	topCrop, err := o.analyse(lowimg, cropWidth, cropHeight, realMinScale)
 	if err != nil {
 		return topCrop, err
 	}
@@ -272,42 +272,42 @@ func score(output *image.RGBA, crop Crop) Score {
 	return score
 }
 
-func analyse(logger Logger, detectors []Detector, img *image.RGBA, cropWidth, cropHeight, realMinScale float64) (image.Rectangle, error) {
+func (a *smartcropAnalyzer) analyse(img *image.RGBA, cropWidth, cropHeight, realMinScale float64) (image.Rectangle, error) {
 	o := image.NewRGBA(img.Bounds())
 
 	/*
 		Run each detector. They write to R (skin), G (features) and B (saturation) channels on image 'o'.
 		The score function will use that information.
 	*/
-	for _, d := range detectors {
+	for _, d := range a.detectors {
 		start := time.Now()
 		err := d.Detect(img, o)
 		if err != nil {
 			return image.Rectangle{}, err
 		}
-		logger.Log.Printf("Time elapsed detecting %s: %s\n", d.Name(), time.Since(start))
-		debugOutput(logger.DebugMode, o, d.Name())
+		a.logger.Log.Printf("Time elapsed detecting %s: %s\n", d.Name(), time.Since(start))
+		debugOutput(a.logger.DebugMode, o, d.Name())
 	}
 
 	now := time.Now()
 	var topCrop Crop
 	topScore := -1.0
 	cs := crops(o, cropWidth, cropHeight, realMinScale)
-	logger.Log.Println("Time elapsed crops:", time.Since(now), len(cs))
+	a.logger.Log.Println("Time elapsed crops:", time.Since(now), len(cs))
 
 	now = time.Now()
 	for _, crop := range cs {
 		nowIn := time.Now()
 		crop.Score = score(o, crop)
-		logger.Log.Println("Time elapsed single-score:", time.Since(nowIn))
+		a.logger.Log.Println("Time elapsed single-score:", time.Since(nowIn))
 		if crop.totalScore() > topScore {
 			topCrop = crop
 			topScore = crop.totalScore()
 		}
 	}
-	logger.Log.Println("Time elapsed score:", time.Since(now))
+	a.logger.Log.Println("Time elapsed score:", time.Since(now))
 
-	if logger.DebugMode {
+	if a.logger.DebugMode {
 		drawDebugCrop(topCrop, o)
 		debugOutput(true, o, "final")
 	}
