@@ -105,22 +105,20 @@ type Logger struct {
 }
 
 /*
-	DetailDetector detects detail that other Detectors can use.
+	DetailDetector detects detail that can be handled in the scoring phase in a different way.
 */
 type DetailDetector interface {
 	Name() string
-	Detect(original *image.RGBA, sharedResult *image.RGBA) error
+	Detect(original *image.RGBA) ([][]uint8, error)
 	Weight() float64
 }
 
 /*
-	Detector contains a method that detects either skin, features or saturation. Its Detect method writes
-	the detected skin, features or saturation to red, green and blue channels, respectively.
 	Detector contains a method that detects features like skin or saturation.
 */
 type Detector interface {
 	Name() string
-	Detect(original *image.RGBA, sharedResult *image.RGBA) error
+	Detect(original *image.RGBA) ([][]uint8, error)
 	Bias() float64
 	Weight() float64
 }
@@ -421,14 +419,17 @@ func (d *EdgeDetector) Weight() float64 {
 	return detailWeight
 }
 
-func (d *EdgeDetector) Detect(i *image.RGBA, o *image.RGBA) error {
+func (d *EdgeDetector) Detect(i *image.RGBA) ([][]uint8, error) {
 	width := i.Bounds().Dx()
 	height := i.Bounds().Dy()
 	cies := makeCies(i)
 
+	res := make([][]uint8, width)
+
 	var lightness float64
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
+	for x := 0; x < width; x++ {
+		res[x] = make([]uint8, height)
+		for y := 0; y < height; y++ {
 			if x == 0 || x >= width-1 || y == 0 || y >= height-1 {
 				//lightness = cie((*i).At(x, y))
 				lightness = 0
@@ -440,11 +441,10 @@ func (d *EdgeDetector) Detect(i *image.RGBA, o *image.RGBA) error {
 					cies[x+(y+1)*width]
 			}
 
-			nc := color.RGBA{0, uint8(bounds(lightness)), 0, 255}
-			o.SetRGBA(x, y, nc)
+			res[x][y] = uint8(bounds(lightness))
 		}
 	}
-	return nil
+	return res, nil
 }
 
 type SkinDetector struct{}
@@ -461,27 +461,25 @@ func (d *SkinDetector) Weight() float64 {
 	return skinWeight
 }
 
-func (d *SkinDetector) Detect(i *image.RGBA, o *image.RGBA) error {
+func (d *SkinDetector) Detect(i *image.RGBA) ([][]uint8, error) {
 	width := i.Bounds().Dx()
 	height := i.Bounds().Dy()
 
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
+	res := make([][]uint8, width)
+
+	for x := 0; x < width; x++ {
+		res[x] = make([]uint8, height)
+		for y := 0; y < height; y++ {
 			lightness := cie(i.RGBAAt(x, y)) / 255.0
 			skin := skinCol(i.RGBAAt(x, y))
 
-			c := o.RGBAAt(x, y)
 			if skin > skinThreshold && lightness >= skinBrightnessMin && lightness <= skinBrightnessMax {
 				r := (skin - skinThreshold) * (255.0 / (1.0 - skinThreshold))
-				nc := color.RGBA{uint8(bounds(r)), c.G, c.B, 255}
-				o.SetRGBA(x, y, nc)
-			} else {
-				nc := color.RGBA{0, c.G, c.B, 255}
-				o.SetRGBA(x, y, nc)
+				res[x][y] = uint8(bounds(r))
 			}
 		}
 	}
-	return nil
+	return res, nil
 }
 
 type SaturationDetector struct{}
@@ -498,27 +496,25 @@ func (d *SaturationDetector) Weight() float64 {
 	return saturationWeight
 }
 
-func (d *SaturationDetector) Detect(i *image.RGBA, o *image.RGBA) error {
+func (d *SaturationDetector) Detect(i *image.RGBA) ([][]uint8, error) {
 	width := i.Bounds().Dx()
 	height := i.Bounds().Dy()
 
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
+	res := make([][]uint8, width)
+
+	for x := 0; x < width; x++ {
+		res[x] = make([]uint8, height)
+		for y := 0; y < height; y++ {
 			lightness := cie(i.RGBAAt(x, y)) / 255.0
 			saturation := saturation(i.RGBAAt(x, y))
 
-			c := o.RGBAAt(x, y)
 			if saturation > saturationThreshold && lightness >= saturationBrightnessMin && lightness <= saturationBrightnessMax {
 				b := (saturation - saturationThreshold) * (255.0 / (1.0 - saturationThreshold))
-				nc := color.RGBA{c.R, c.G, uint8(bounds(b)), 255}
-				o.SetRGBA(x, y, nc)
-			} else {
-				nc := color.RGBA{c.R, c.G, 0, 255}
-				o.SetRGBA(x, y, nc)
+				res[x][y] = uint8(bounds(b))
 			}
 		}
 	}
-	return nil
+	return res, nil
 }
 
 func crops(i image.Image, cropWidth, cropHeight, realMinScale float64) []Crop {
