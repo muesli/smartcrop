@@ -8,9 +8,9 @@ import (
 	"log"
 	"os"
 
-	"github.com/muesli/smartcrop"
-	//	"github.com/muesli/smartcrop/gocv"
-	"github.com/muesli/smartcrop/nfnt"
+	"github.com/svkoskin/smartcrop"
+	"github.com/svkoskin/smartcrop/nfnt"
+	//	"github.com/svkoskin/smartcrop/gocv"
 )
 
 func main() {
