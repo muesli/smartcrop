@@ -303,6 +303,8 @@ type detection struct {
 }
 
 func (a *smartcropAnalyzer) analyse(img *image.RGBA, cropWidth, cropHeight, realMinScale float64) (image.Rectangle, error) {
+	debugImg := NewDebugImage(img.Bounds())
+
 	d := a.detailDetector
 	start := time.Now()
 	detailPix, err := d.Detect(img)
@@ -310,7 +312,10 @@ func (a *smartcropAnalyzer) analyse(img *image.RGBA, cropWidth, cropHeight, real
 		return image.Rectangle{}, err
 	}
 	a.logger.Log.Printf("Time elapsed detecting %s: %s\n", d.Name(), time.Since(start))
-	//debugOutput(a.logger.DebugMode, o, d.Name())
+	if a.logger.DebugMode {
+		debugImg.AddDetected(detailPix)
+		debugImg.DebugOutput(d.Name())
+	}
 
 	detailDetection := detection{Pix: detailPix, Weight: a.detailDetector.Weight()}
 
@@ -326,7 +331,10 @@ func (a *smartcropAnalyzer) analyse(img *image.RGBA, cropWidth, cropHeight, real
 		detections[i] = detection{Pix: pix, Weight: d.Weight(), Bias: d.Bias()}
 
 		a.logger.Log.Printf("Time elapsed detecting %s: %s\n", d.Name(), time.Since(start))
-		//debugOutput(a.logger.DebugMode, o, d.Name())
+		if a.logger.DebugMode {
+			debugImg.AddDetected(detections[i].Pix)
+			debugImg.DebugOutput(d.Name())
+		}
 	}
 
 	now := time.Now()
@@ -349,12 +357,10 @@ func (a *smartcropAnalyzer) analyse(img *image.RGBA, cropWidth, cropHeight, real
 	}
 	a.logger.Log.Println("Time elapsed score:", time.Since(now))
 
-	/*
-		if a.logger.DebugMode {
-			drawDebugCrop(topCrop, o)
-			debugOutput(true, o, "final")
-		}
-	*/
+	if a.logger.DebugMode {
+		debugImg.DrawDebugCrop(topCrop)
+		debugImg.DebugOutput("final")
+	}
 
 	return topCrop.Rectangle, nil
 }
