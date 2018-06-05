@@ -87,9 +87,8 @@ type Analyzer interface {
 
 // Score contains values that classify matches
 type Score struct {
-	Detail     float64
-	Saturation float64
-	Skin       float64
+	Detail      float64
+	PerDetector []float64
 }
 
 // Crop contains results
@@ -105,7 +104,7 @@ type Logger struct {
 }
 
 /*
-	DetailDetector detects detail that can be handled in the scoring phase in a different way.
+	DetailDetector detects detail that Detectors can use.
 */
 type DetailDetector interface {
 	Name() string
@@ -217,8 +216,18 @@ func (o smartcropAnalyzer) FindBestCrop(img image.Image, width, height int) (ima
 	return topCrop.Canon(), nil
 }
 
-func (c Crop) totalScore() float64 {
-	return (c.Score.Detail*detailWeight + c.Score.Skin*skinWeight + c.Score.Saturation*saturationWeight) / float64(c.Dx()) / float64(c.Dy())
+func (o *smartcropAnalyzer) totalScoreForCrop(c Crop) float64 {
+	t := 0.0
+
+	t += c.Score.Detail * o.detailDetector.Weight()
+
+	for i := range c.Score.PerDetector {
+		t += c.Score.PerDetector[i] * o.detectors[i].Weight()
+	}
+
+	t = t / float64(c.Dx()) / float64(c.Dy())
+
+	return t
 }
 
 func chop(x float64) float64 {
@@ -260,10 +269,12 @@ func importance(crop Crop, x, y int) float64 {
 	return s + d
 }
 
-func score(output *image.RGBA, crop Crop) Score {
-	width := output.Bounds().Dx()
-	height := output.Bounds().Dy()
+func score(detailDetection detection, detections []detection, crop Crop) Score {
+	width := len(detailDetection.Pix)
+	height := len(detailDetection.Pix[0])
 	score := Score{}
+
+	score.PerDetector = make([]float64, len(detections))
 
 	// same loops but with downsampling
 	//for y := 0; y < height; y++ {
@@ -271,72 +282,79 @@ func score(output *image.RGBA, crop Crop) Score {
 	for y := 0; y <= height-scoreDownSample; y += scoreDownSample {
 		for x := 0; x <= width-scoreDownSample; x += scoreDownSample {
 
-			c := output.RGBAAt(x, y)
-			r8 := float64(c.R)
-			g8 := float64(c.G)
-			b8 := float64(c.B)
-
 			imp := importance(crop, int(x), int(y))
-			det := g8 / 255.0
+			det := float64(detailDetection.Pix[x][y]) / 255.0
 
-			score.Skin += r8 / 255.0 * (det + skinBias) * imp
 			score.Detail += det * imp
-			score.Saturation += b8 / 255.0 * (det + saturationBias) * imp
+
+			for i, d := range detections {
+				score.PerDetector[i] += float64(d.Pix[x][y]) / 255.0 * (det + d.Bias) * imp
+			}
 		}
 	}
 
 	return score
 }
 
+type detection struct {
+	Pix    [][]uint8
+	Weight float64
+	Bias   float64
+}
+
 func (a *smartcropAnalyzer) analyse(img *image.RGBA, cropWidth, cropHeight, realMinScale float64) (image.Rectangle, error) {
-	o := image.NewRGBA(img.Bounds())
-
-	/*
-		Run each detector. They write to R (skin), G (features) and B (saturation) channels on image 'o'.
-		The score function will use that information.
-	*/
-
 	d := a.detailDetector
 	start := time.Now()
-	err := d.Detect(img, o)
+	detailPix, err := d.Detect(img)
 	if err != nil {
 		return image.Rectangle{}, err
 	}
 	a.logger.Log.Printf("Time elapsed detecting %s: %s\n", d.Name(), time.Since(start))
-	debugOutput(a.logger.DebugMode, o, d.Name())
+	//debugOutput(a.logger.DebugMode, o, d.Name())
 
-	for _, d := range a.detectors {
+	detailDetection := detection{Pix: detailPix, Weight: a.detailDetector.Weight()}
+
+	detections := make([]detection, len(a.detectors))
+
+	for i, d := range a.detectors {
 		start := time.Now()
-		err := d.Detect(img, o)
+		pix, err := d.Detect(img)
 		if err != nil {
 			return image.Rectangle{}, err
 		}
+
+		detections[i] = detection{Pix: pix, Weight: d.Weight(), Bias: d.Bias()}
+
 		a.logger.Log.Printf("Time elapsed detecting %s: %s\n", d.Name(), time.Since(start))
-		debugOutput(a.logger.DebugMode, o, d.Name())
+		//debugOutput(a.logger.DebugMode, o, d.Name())
 	}
 
 	now := time.Now()
 	var topCrop Crop
 	topScore := -1.0
-	cs := crops(o, cropWidth, cropHeight, realMinScale)
+	cs := crops(img.Bounds(), cropWidth, cropHeight, realMinScale)
 	a.logger.Log.Println("Time elapsed crops:", time.Since(now), len(cs))
 
 	now = time.Now()
 	for _, crop := range cs {
 		nowIn := time.Now()
-		crop.Score = score(o, crop)
+		crop.Score = score(detailDetection, detections, crop)
 		a.logger.Log.Println("Time elapsed single-score:", time.Since(nowIn))
-		if crop.totalScore() > topScore {
+
+		totalScore := a.totalScoreForCrop(crop)
+		if totalScore > topScore {
 			topCrop = crop
-			topScore = crop.totalScore()
+			topScore = totalScore
 		}
 	}
 	a.logger.Log.Println("Time elapsed score:", time.Since(now))
 
-	if a.logger.DebugMode {
-		drawDebugCrop(topCrop, o)
-		debugOutput(true, o, "final")
-	}
+	/*
+		if a.logger.DebugMode {
+			drawDebugCrop(topCrop, o)
+			debugOutput(true, o, "final")
+		}
+	*/
 
 	return topCrop.Rectangle, nil
 }
@@ -517,10 +535,10 @@ func (d *SaturationDetector) Detect(i *image.RGBA) ([][]uint8, error) {
 	return res, nil
 }
 
-func crops(i image.Image, cropWidth, cropHeight, realMinScale float64) []Crop {
+func crops(bounds image.Rectangle, cropWidth, cropHeight, realMinScale float64) []Crop {
 	res := []Crop{}
-	width := i.Bounds().Dx()
-	height := i.Bounds().Dy()
+	width := bounds.Dx()
+	height := bounds.Dy()
 
 	minDimension := math.Min(float64(width), float64(height))
 	var cropW, cropH float64
