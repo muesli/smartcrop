@@ -75,12 +75,48 @@ func (d *FaceDetector) Detect(img *image.RGBA) ([][]uint8, error) {
 			d.Logger.Log.Printf("Face: x: %d y: %d w: %d h: %d\n", x, y, width, height)
 		}
 
-		// Mark the rectangle in our [][]uint8 result
-		for i := 0; i < width; i++ {
-			for j := 0; j < height; j++ {
-				res[x+i][y+j] = 255
-			}
-		}
+		drawAFilledCircle(res, x+(width/2), y+(height/2), width/2)
 	}
 	return res, nil
+}
+
+func drawAFilledCircle(pix [][]uint8, x0, y0, r int) {
+	x := r - 1
+	y := 0
+	dx := 1
+	dy := 1
+	err := dx - (r << 1)
+
+	for {
+		if x < y {
+			return
+		}
+
+		for i := -x; i <= x; i++ {
+			putPixel(pix, x0+i, y0+y)
+			putPixel(pix, x0+i, y0-y)
+			putPixel(pix, x0+y, y0+i)
+			putPixel(pix, x0-y, y0+i)
+		}
+
+		if err <= 0 {
+			y++
+			err += dy
+			dy += 2
+		} else {
+			x--
+			dx += 2
+			err += dx - (r << 1)
+		}
+	}
+}
+
+func putPixel(pix [][]uint8, x, y int) {
+	if x >= len(pix) {
+		return
+	}
+	if y >= len(pix[x]) {
+		return
+	}
+	pix[x][y] = uint8(255)
 }
