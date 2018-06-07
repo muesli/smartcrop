@@ -91,7 +91,7 @@ func scaledColorComponent(factor uint8, oldComponent uint8, newComponent uint8) 
 		return oldComponent
 	}
 
-	return uint8(bounds(float64(factor) / 255.0 * float64(newComponent)))
+	return uint8(bounds(((float64(factor)/255.0*float64(newComponent))+float64(oldComponent))/2.0) * 2.0)
 }
 
 func (di *DebugImage) AddDetected(d [][]uint8) {
