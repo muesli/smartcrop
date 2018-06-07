@@ -34,7 +34,7 @@ func main() {
 		To replace skin detection with gocv-based face detection:
 
 		analyzer.SetDetectors([]smartcrop.Detector{
-			&gocv.FaceDetector{"./cascade.xml", true},
+			&gocv.FaceDetector{"./cascade.xml", &l},
 			&smartcrop.SaturationDetector{},
 		})
 	*/
