@@ -54,8 +54,11 @@ func (d *FaceDetector) Detect(img *image.RGBA) ([][]uint8, error) {
 	}
 
 	// image.NRGBA-compatible params
-	cvMat := gocv.NewMatFromBytes(img.Rect.Dy(), img.Rect.Dx(), gocv.MatTypeCV8UC4, img.Pix)
+	cvMat, err := gocv.NewMatFromBytes(img.Rect.Dy(), img.Rect.Dx(), gocv.MatTypeCV8UC4, img.Pix)
 	defer cvMat.Close()
+	if err != nil {
+	   return res, err
+	}
 
 	faces := classifier.DetectMultiScale(cvMat)
 
