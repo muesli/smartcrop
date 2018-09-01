@@ -43,7 +43,6 @@ import (
 	"github.com/muesli/smartcrop/options"
 
 	"github.com/esimov/pigo/core"
-	"github.com/fogleman/gg"
 	"github.com/llgcode/draw2d/draw2dimg"
 	"github.com/llgcode/draw2d/draw2dkit"
 	"golang.org/x/image/draw"
@@ -54,8 +53,6 @@ var (
 	ErrInvalidDimensions = errors.New("Expect either a height or width")
 
 	skinColor = [3]float64{0.78, 0.57, 0.44}
-
-	dc *gg.Context
 )
 
 const (
@@ -116,7 +113,7 @@ type smartcropAnalyzer struct {
 // NewAnalyzer returns a new Analyzer using the given Resizer.
 func NewAnalyzer(resizer options.Resizer) Analyzer {
 	logger := Logger{
-		DebugMode: true,
+		DebugMode: false,
 	}
 
 	return NewAnalyzerWithLogger(resizer, logger)
