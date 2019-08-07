@@ -11,7 +11,7 @@ Image: [https://www.flickr.com/photos/endogamia/5682480447](https://www.flickr.c
 
 ## Installation
 
-Make sure you have a working Go environment (Go 1.4 or higher is required).
+Make sure you have a working Go environment (Go 1.9 or higher is required).
 See the [install instructions](http://golang.org/doc/install.html).
 
 To install smartcrop, simply run:
