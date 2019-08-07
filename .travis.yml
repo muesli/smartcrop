@@ -15,6 +15,10 @@ matrix:
   allow_failures:
     - go: tip
 
+env:
+  global:
+    GO111MODULE=on
+
 before_install:
   - if [[ $TRAVIS_GO_VERSION == 1.12* ]]; then go get github.com/axw/gocov/gocov github.com/mattn/goveralls; fi
 #  - sudo add-apt-repository -y ppa:kubuntu-ppa/backports
