@@ -56,7 +56,30 @@ func main() {
 }
 ```
 
-Also see the test cases in smartcrop_test.go for further working examples.
+Also see the test cases in smartcrop_test.go and cli application in cmd/smartcrop/ for further working examples.
+
+## Simple CLI application
+
+    cd $GOPATH/src/github.com/muesli/smartcrop  
+    go install ./cmd/smartcrop
+
+
+    Usage of smartcrop:
+      -height int
+            crop height
+      -input string
+            input filename
+      -output string
+            output filename
+      -quality int
+            jpeg quality (default 85)
+      -resize
+            resize after cropping (default true)
+      -width int
+            crop width
+
+Example:
+    smartcrop -input examples/gopher.jpg -output gopher_cropped.jpg -width 300 -height 150
 
 ## Sample Data
 You can find a bunch of test images for the algorithm [here](https://github.com/muesli/smartcrop-samples).
