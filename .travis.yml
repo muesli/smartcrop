@@ -10,6 +10,7 @@ go:
   - 1.11.x
   - 1.12.x
   - 1.13.x
+  - 1.14.x
   - tip
 
 matrix:
@@ -21,14 +22,14 @@ env:
     GO111MODULE=on
 
 before_install:
-  - if [[ $TRAVIS_GO_VERSION == 1.13* ]]; then go get github.com/axw/gocov/gocov github.com/mattn/goveralls; fi
+  - if [[ $TRAVIS_GO_VERSION == 1.14* ]]; then go get github.com/axw/gocov/gocov github.com/mattn/goveralls; fi
 #  - sudo add-apt-repository -y ppa:kubuntu-ppa/backports
 #  - sudo apt-get update -qq
 #  - sudo apt-get install libcv-dev libopencv-dev libopencv-contrib-dev libhighgui-dev libopencv-photo-dev libopencv-imgproc-dev libopencv-stitching-dev libopencv-superres-dev libopencv-ts-dev libopencv-videostab-dev
 
 script:
   - go test -v -tags ci ./...
-  - if [[ $TRAVIS_GO_VERSION == 1.13* ]]; then $GOPATH/bin/goveralls -service=travis-ci; fi
+  - if [[ $TRAVIS_GO_VERSION == 1.14* ]]; then $GOPATH/bin/goveralls -service=travis-ci; fi
 
 notifications:
   email:
