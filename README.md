@@ -3,7 +3,7 @@ smartcrop
 
 [![Build Status](https://travis-ci.org/muesli/smartcrop.svg?branch=master)](https://travis-ci.org/muesli/smartcrop)
 [![Coverage Status](https://coveralls.io/repos/github/muesli/smartcrop/badge.svg?branch=master)](https://coveralls.io/github/muesli/smartcrop?branch=master)
-[![Go ReportCard](http://goreportcard.com/badge/muesli/smartcrop)](http://goreportcard.com/report/muesli/smartcrop)
+[![Go ReportCard](https://goreportcard.com/badge/muesli/smartcrop)](https://goreportcard.com/report/muesli/smartcrop)
 [![GoDoc](https://godoc.org/github.com/golang/gddo?status.svg)](https://godoc.org/github.com/muesli/smartcrop)
 
 smartcrop finds good image crops for arbitrary sizes. It is a pure Go implementation, based on Jonas Wagner's [smartcrop.js](https://github.com/jwagner/smartcrop.js)
@@ -17,7 +17,7 @@ Image: [https://www.flickr.com/photos/endogamia/5682480447](https://www.flickr.c
 ## Installation
 
 Make sure you have a working Go environment (Go 1.9 or higher is required).
-See the [install instructions](http://golang.org/doc/install.html).
+See the [install instructions](https://golang.org/doc/install.html).
 
 To install smartcrop, simply run:
 
@@ -65,7 +65,7 @@ Also see the test cases in smartcrop_test.go and cli application in cmd/smartcro
 
 ## Simple CLI application
 
-    cd $GOPATH/src/github.com/muesli/smartcrop  
+    cd $GOPATH/src/github.com/muesli/smartcrop
     go install ./cmd/smartcrop
 
 
