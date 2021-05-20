@@ -41,10 +41,92 @@ import (
 	"path/filepath"
 )
 
-func debugOutput(debug bool, img *image.RGBA, debugType string) {
-	if debug {
-		writeImage("png", img, "./smartcrop_"+debugType+".png")
+// debugImage carries debug output image and has methods for updating and writing it
+type DebugImage struct {
+	img          *image.RGBA
+	colors       []color.RGBA
+	nextColorIdx int
+}
+
+func NewDebugImage(bounds image.Rectangle) *DebugImage {
+	di := DebugImage{}
+
+	// Set up the actual image
+	di.img = image.NewRGBA(bounds)
+	for x := bounds.Min.X; x < bounds.Max.X; x++ {
+		for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+			di.img.Set(x, y, color.Black)
+		}
 	}
+
+	// Set up an array of colors used for debug outputs
+	di.colors = []color.RGBA{
+		{0, 255, 0, 255},   // default edges
+		{255, 0, 0, 255},   // default skin
+		{0, 0, 255, 255},   // default saturation
+		{255, 128, 0, 255}, // a few extra...
+		{128, 0, 128, 255},
+		{64, 255, 255, 255},
+		{255, 64, 255, 255},
+		{255, 255, 64, 255},
+		{255, 255, 255, 255},
+	}
+	di.nextColorIdx = 0
+	return &di
+}
+
+func (di *DebugImage) popNextColor() color.RGBA {
+	c := di.colors[di.nextColorIdx]
+	di.nextColorIdx++
+
+	// Wrap around if necessary (if someone ever implements and sets a tenth detector)
+	if di.nextColorIdx >= len(di.colors) {
+		di.nextColorIdx = 0
+	}
+	return c
+}
+
+func scaledColorComponent(factor uint8, oldComponent uint8, newComponent uint8) uint8 {
+	if factor < 1 {
+		return oldComponent
+	}
+
+	return uint8(bounds(((float64(factor)/255.0*float64(newComponent))+float64(oldComponent))/2.0) * 2.0)
+}
+
+func (di *DebugImage) AddDetected(d [][]uint8) {
+	baseColor := di.popNextColor()
+
+	minX := di.img.Bounds().Min.X
+	minY := di.img.Bounds().Min.Y
+
+	maxX := di.img.Bounds().Max.X
+	maxY := di.img.Bounds().Max.Y
+	if maxX > len(d) {
+		maxX = len(d)
+	}
+	if maxY > len(d[0]) {
+		maxY = len(d[0])
+	}
+
+	for x := minX; x < maxX; x++ {
+		for y := minY; y < maxY; y++ {
+			if d[x][y] > 0 {
+				c := di.img.RGBAAt(x, y)
+				nc := color.RGBA{}
+				nc.R = scaledColorComponent(d[x][y], c.R, baseColor.R)
+				nc.G = scaledColorComponent(d[x][y], c.G, baseColor.G)
+				nc.B = scaledColorComponent(d[x][y], c.B, baseColor.B)
+				nc.A = 255
+
+				di.img.SetRGBA(x, y, nc)
+			}
+		}
+	}
+}
+
+func (di *DebugImage) DebugOutput(debugType string) {
+	writeImage("png", di.img, "./smartcrop_"+debugType+".png")
 }
 
 func writeImage(imgtype string, img image.Image, name string) error {
@@ -82,7 +164,9 @@ func writeImageToPng(img image.Image, name string) error {
 	return png.Encode(fso, img)
 }
 
-func drawDebugCrop(topCrop Crop, o *image.RGBA) {
+func (di *DebugImage) DrawDebugCrop(topCrop Crop) {
+	o := di.img
+
 	width := o.Bounds().Dx()
 	height := o.Bounds().Dy()
 

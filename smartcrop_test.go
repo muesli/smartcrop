@@ -29,7 +29,6 @@ package smartcrop
 
 import (
 	"errors"
-	"fmt"
 	"image"
 	_ "image/jpeg"
 	_ "image/png"
@@ -118,8 +117,8 @@ func BenchmarkEdge(b *testing.B) {
 	rgbaImg := toRGBA(img)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		o := image.NewRGBA(img.Bounds())
-		edgeDetect(rgbaImg, o)
+		d := EdgeDetector{}
+		d.Detect(rgbaImg)
 	}
 }
 
@@ -146,7 +145,6 @@ func BenchmarkImageDir(b *testing.B) {
 				b.Error(err)
 				continue
 			}
-			fmt.Printf("Top crop: %+v\n", topCrop)
 
 			sub, ok := img.(SubImager)
 			if ok {
@@ -158,5 +156,4 @@ func BenchmarkImageDir(b *testing.B) {
 			}
 		}
 	}
-	// fmt.Println("average time/image:", b.t)
 }
