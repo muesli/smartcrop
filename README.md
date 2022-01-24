@@ -2,7 +2,7 @@ smartcrop
 =========
 
 [![Latest Release](https://img.shields.io/github/release/muesli/smartcrop.svg)](https://github.com/muesli/smartcrop/releases)
-[![Build Status](https://travis-ci.org/muesli/smartcrop.svg?branch=master)](https://travis-ci.org/muesli/smartcrop)
+[![Build Status](https://github.com/muesli/smartcrop/workflows/build/badge.svg)](https://github.com/muesli/smartcrop/actions)
 [![Coverage Status](https://coveralls.io/repos/github/muesli/smartcrop/badge.svg?branch=master)](https://coveralls.io/github/muesli/smartcrop?branch=master)
 [![Go ReportCard](https://goreportcard.com/badge/muesli/smartcrop)](https://goreportcard.com/report/muesli/smartcrop)
 [![GoDoc](https://godoc.org/github.com/golang/gddo?status.svg)](https://godoc.org/github.com/muesli/smartcrop)
