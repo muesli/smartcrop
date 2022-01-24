@@ -60,7 +60,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "can't open input file: %v\n", err)
 		os.Exit(1)
 	}
-	defer f.Close()
+	defer f.Close() //nolint:errcheck // read-only file
 
 	img, format, err := image.Decode(f)
 	if err != nil {
@@ -78,15 +78,23 @@ func main() {
 			fmt.Fprintf(os.Stderr, "can't create output file: %v\n", err)
 			os.Exit(1)
 		}
-		defer fOut.Close()
 	}
 
 	img = crop(img, *w, *h, *resize)
 	switch format {
 	case "png":
-		png.Encode(fOut, img)
+		err = png.Encode(fOut, img)
 	case "jpeg":
-		jpeg.Encode(fOut, img, &jpeg.Options{Quality: *quality})
+		err = jpeg.Encode(fOut, img, &jpeg.Options{Quality: *quality})
+	}
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "can't encode image: %v\n", err)
+		os.Exit(1)
+	}
+
+	if err := fOut.Close(); err != nil {
+		fmt.Fprintf(os.Stderr, "can't create output file: %v\n", err)
+		os.Exit(1)
 	}
 }
 

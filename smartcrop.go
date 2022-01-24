@@ -154,7 +154,7 @@ func (o smartcropAnalyzer) FindBestCrop(img image.Image, width, height int) (ima
 	}
 
 	if o.logger.DebugMode {
-		writeImage("png", lowimg, "./smartcrop_prescale.png")
+		_ = writeImage("png", lowimg, "./smartcrop_prescale.png")
 	}
 
 	cropWidth, cropHeight := chop(float64(width)*scale*prescalefactor), chop(float64(height)*scale*prescalefactor)
@@ -163,10 +163,7 @@ func (o smartcropAnalyzer) FindBestCrop(img image.Image, width, height int) (ima
 	o.logger.Log.Printf("original resolution: %dx%d\n", img.Bounds().Dx(), img.Bounds().Dy())
 	o.logger.Log.Printf("scale: %f, cropw: %f, croph: %f, minscale: %f\n", scale, cropWidth, cropHeight, realMinScale)
 
-	topCrop, err := analyse(o.logger, lowimg, cropWidth, cropHeight, realMinScale)
-	if err != nil {
-		return topCrop, err
-	}
+	topCrop := analyse(o.logger, lowimg, cropWidth, cropHeight, realMinScale)
 
 	if prescale == true {
 		topCrop.Min.X = int(chop(float64(topCrop.Min.X) / prescalefactor))
@@ -231,13 +228,12 @@ func score(output *image.RGBA, crop Crop) Score {
 	//for x := 0; x < width; x++ {
 	for y := 0; y <= height-scoreDownSample; y += scoreDownSample {
 		for x := 0; x <= width-scoreDownSample; x += scoreDownSample {
-
 			c := output.RGBAAt(x, y)
 			r8 := float64(c.R)
 			g8 := float64(c.G)
 			b8 := float64(c.B)
 
-			imp := importance(crop, int(x), int(y))
+			imp := importance(crop, x, y)
 			det := g8 / 255.0
 
 			score.Skin += r8 / 255.0 * (det + skinBias) * imp
@@ -249,7 +245,7 @@ func score(output *image.RGBA, crop Crop) Score {
 	return score
 }
 
-func analyse(logger Logger, img *image.RGBA, cropWidth, cropHeight, realMinScale float64) (image.Rectangle, error) {
+func analyse(logger Logger, img *image.RGBA, cropWidth, cropHeight, realMinScale float64) image.Rectangle {
 	o := image.NewRGBA(img.Bounds())
 
 	now := time.Now()
@@ -290,7 +286,7 @@ func analyse(logger Logger, img *image.RGBA, cropWidth, cropHeight, realMinScale
 		debugOutput(true, o, "final")
 	}
 
-	return topCrop.Rectangle, nil
+	return topCrop.Rectangle
 }
 
 func saturation(c color.RGBA) float64 {
@@ -349,7 +345,7 @@ func skinCol(c color.RGBA) float64 {
 func makeCies(img *image.RGBA) []float64 {
 	width := img.Bounds().Dx()
 	height := img.Bounds().Dy()
-	cies := make([]float64, width*height, width*height)
+	cies := make([]float64, width*height)
 	i := 0
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
@@ -464,10 +460,11 @@ func crops(i image.Image, cropWidth, cropHeight, realMinScale float64) []Crop {
 
 // toRGBA converts an image.Image to an image.RGBA
 func toRGBA(img image.Image) *image.RGBA {
-	switch img.(type) {
+	switch v := img.(type) {
 	case *image.RGBA:
-		return img.(*image.RGBA)
+		return v
 	}
+
 	out := image.NewRGBA(img.Bounds())
 	draw.Copy(out, image.Pt(0, 0), img, img.Bounds(), draw.Src, nil)
 	return out
