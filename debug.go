@@ -43,7 +43,7 @@ import (
 
 func debugOutput(debug bool, img *image.RGBA, debugType string) {
 	if debug {
-		writeImage("png", img, "./smartcrop_"+debugType+".png")
+		_ = writeImage("png", img, "./smartcrop_"+debugType+".png")
 	}
 }
 
@@ -67,7 +67,7 @@ func writeImageToJpeg(img image.Image, name string) error {
 	if err != nil {
 		return err
 	}
-	defer fso.Close()
+	defer fso.Close() //nolint:errcheck // debug-only method
 
 	return jpeg.Encode(fso, img, &jpeg.Options{Quality: 100})
 }
@@ -77,7 +77,7 @@ func writeImageToPng(img image.Image, name string) error {
 	if err != nil {
 		return err
 	}
-	defer fso.Close()
+	defer fso.Close() //nolint:errcheck // debug-only method
 
 	return png.Encode(fso, img)
 }
