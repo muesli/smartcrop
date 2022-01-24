@@ -1,6 +1,7 @@
 smartcrop
 =========
 
+[![Latest Release](https://img.shields.io/github/release/muesli/smartcrop.svg)](https://github.com/muesli/smartcrop/releases)
 [![Build Status](https://travis-ci.org/muesli/smartcrop.svg?branch=master)](https://travis-ci.org/muesli/smartcrop)
 [![Coverage Status](https://coveralls.io/repos/github/muesli/smartcrop/badge.svg?branch=master)](https://coveralls.io/github/muesli/smartcrop?branch=master)
 [![Go ReportCard](https://goreportcard.com/badge/muesli/smartcrop)](https://goreportcard.com/report/muesli/smartcrop)
@@ -16,7 +17,7 @@ Image: [https://www.flickr.com/photos/endogamia/5682480447](https://www.flickr.c
 
 ## Installation
 
-Make sure you have a working Go environment (Go 1.9 or higher is required).
+Make sure you have a working Go environment (Go 1.12 or higher is required).
 See the [install instructions](https://golang.org/doc/install.html).
 
 To install smartcrop, simply run:
@@ -25,9 +26,9 @@ To install smartcrop, simply run:
 
 To compile it from source:
 
-    cd $GOPATH/src/github.com/muesli/smartcrop
-    go get -u -v
-    go build && go test -v
+    git clone https://github.com/muesli/smartcrop.git
+    cd smartcrop
+    go build
 
 ## Example
 ```go
@@ -65,9 +66,7 @@ Also see the test cases in smartcrop_test.go and cli application in cmd/smartcro
 
 ## Simple CLI application
 
-    cd $GOPATH/src/github.com/muesli/smartcrop
-    go install ./cmd/smartcrop
-
+    go install github.com/muesli/smartcrop/cmd/smartcrop
 
     Usage of smartcrop:
       -height int
@@ -87,7 +86,12 @@ Example:
     smartcrop -input examples/gopher.jpg -output gopher_cropped.jpg -width 300 -height 150
 
 ## Sample Data
+
 You can find a bunch of test images for the algorithm [here](https://github.com/muesli/smartcrop-samples).
 
-## Development
-Join us on IRC: irc.freenode.net/#smartcrop
+## Feedback
+
+Got some feedback or suggestions? Please open an issue or drop me a note!
+
+* [Twitter](https://twitter.com/mueslix)
+* [The Fediverse](https://mastodon.social/@fribbledom)
