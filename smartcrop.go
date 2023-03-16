@@ -42,6 +42,9 @@ import (
 
 	"github.com/muesli/smartcrop/options"
 
+	"github.com/esimov/pigo/core"
+	"github.com/llgcode/draw2d/draw2dimg"
+	"github.com/llgcode/draw2d/draw2dkit"
 	"golang.org/x/image/draw"
 )
 
@@ -264,6 +267,11 @@ func analyse(logger Logger, img *image.RGBA, cropWidth, cropHeight, realMinScale
 	debugOutput(logger.DebugMode, o, "saturation")
 
 	now = time.Now()
+	faceDetect(img, o)
+	logger.Log.Println("Time elapsed sat:", time.Since(now))
+	debugOutput(logger.DebugMode, o, "face")
+
+	now = time.Now()
 	var topCrop Crop
 	topScore := -1.0
 	cs := crops(o, cropWidth, cropHeight, realMinScale)
@@ -423,6 +431,50 @@ func saturationDetect(i *image.RGBA, o *image.RGBA) {
 				o.SetRGBA(x, y, nc)
 			}
 		}
+	}
+}
+
+func faceDetect(i *image.RGBA, o *image.RGBA) {
+	src := pigo.ImgToNRGBA(i)
+	pixels := pigo.RgbToGrayscale(src)
+	cols, rows := src.Bounds().Max.X, src.Bounds().Max.Y
+
+	cParams := pigo.CascadeParams{
+		MinSize:     20,
+		MaxSize:     1000,
+		ShiftFactor: 0.1,
+		ScaleFactor: 1.1,
+	}
+	imgParams := pigo.ImageParams{
+		Pixels: pixels,
+		Rows:   rows,
+		Cols:   cols,
+		Dim:    cols,
+	}
+
+	cascadeFile, err := dataFace()
+	if err != nil {
+		log.Fatalf("Error reading the cascade file: %v", err)
+	}
+
+	pigo := pigo.NewPigo()
+
+	classifier, err := pigo.Unpack(cascadeFile)
+	if err != nil {
+		log.Fatalf("Error reading the cascade file: %s", err)
+	}
+
+	dets := classifier.RunCascade(imgParams, cParams)
+
+	faces := classifier.ClusterDetections(dets, 0.2)
+
+	gc := draw2dimg.NewGraphicContext(o)
+
+	for _, face := range faces {
+		draw2dkit.Ellipse(gc, float64(face.Col), float64(face.Row), float64(face.Scale/2), float64(face.Scale)/2)
+		gc.SetLineWidth(2.0)
+		gc.SetStrokeColor(color.RGBA{255, 0, 0, 255})
+		gc.Stroke()
 	}
 }
 
