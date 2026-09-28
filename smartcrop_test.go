@@ -83,6 +83,23 @@ func TestCrop(t *testing.T) {
 	}
 }
 
+func TestMinScaleOption(t *testing.T) {
+	img := image.NewRGBA(image.Rect(0, 0, 100, 100))
+	resizer := nfnt.NewDefaultResizer()
+	for _, analyzer := range []Analyzer{
+		NewAnalyzer(resizer, AnalyzerOptions{MinScale: 1.0}),
+		NewAnalyzerWithLogger(resizer, Logger{}, AnalyzerOptions{MinScale: 1.0}),
+	} {
+		crop, err := analyzer.FindBestCrop(img, 50, 50)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if crop != img.Bounds() {
+			t.Fatalf("MinScale 1.0: expected %v, got %v", img.Bounds(), crop)
+		}
+	}
+}
+
 func BenchmarkCrop(b *testing.B) {
 	fi, err := os.Open(testFile)
 	if err != nil {

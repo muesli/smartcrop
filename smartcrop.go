@@ -102,26 +102,36 @@ type Logger struct {
 	Log       *log.Logger
 }
 
+// AnalyzerOptions configures an Analyzer. A zero MinScale uses the default of 0.9.
+type AnalyzerOptions struct {
+	MinScale float64
+}
+
 type smartcropAnalyzer struct {
 	logger Logger
 	options.Resizer
+	minScale float64
 }
 
 // NewAnalyzer returns a new Analyzer using the given Resizer.
-func NewAnalyzer(resizer options.Resizer) Analyzer {
+func NewAnalyzer(resizer options.Resizer, opts ...AnalyzerOptions) Analyzer {
 	logger := Logger{
 		DebugMode: false,
 	}
 
-	return NewAnalyzerWithLogger(resizer, logger)
+	return NewAnalyzerWithLogger(resizer, logger, opts...)
 }
 
 // NewAnalyzerWithLogger returns a new analyzer with the given Resizer and Logger.
-func NewAnalyzerWithLogger(resizer options.Resizer, logger Logger) Analyzer {
+func NewAnalyzerWithLogger(resizer options.Resizer, logger Logger, opts ...AnalyzerOptions) Analyzer {
 	if logger.Log == nil {
 		logger.Log = log.New(ioutil.Discard, "", 0)
 	}
-	return &smartcropAnalyzer{Resizer: resizer, logger: logger}
+	configuredMinScale := minScale
+	if len(opts) > 0 && opts[0].MinScale > 0 {
+		configuredMinScale = opts[0].MinScale
+	}
+	return &smartcropAnalyzer{Resizer: resizer, logger: logger, minScale: configuredMinScale}
 }
 
 func (o smartcropAnalyzer) FindBestCrop(img image.Image, width, height int) (image.Rectangle, error) {
@@ -158,7 +168,7 @@ func (o smartcropAnalyzer) FindBestCrop(img image.Image, width, height int) (ima
 	}
 
 	cropWidth, cropHeight := chop(float64(width)*scale*prescalefactor), chop(float64(height)*scale*prescalefactor)
-	realMinScale := math.Min(maxScale, math.Max(1.0/scale, minScale))
+	realMinScale := math.Min(maxScale, math.Max(1.0/scale, o.minScale))
 
 	o.logger.Log.Printf("original resolution: %dx%d\n", img.Bounds().Dx(), img.Bounds().Dy())
 	o.logger.Log.Printf("scale: %f, cropw: %f, croph: %f, minscale: %f\n", scale, cropWidth, cropHeight, realMinScale)
