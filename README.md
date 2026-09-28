@@ -62,6 +62,15 @@ func main() {
 }
 ```
 
+To prevent crops smaller than the target aspect ratio requires, set the optional
+minimum scale to `1.0`:
+
+```go
+analyzer := smartcrop.NewAnalyzer(nfnt.NewDefaultResizer(), smartcrop.AnalyzerOptions{MinScale: 1.0})
+```
+
+The default minimum scale remains `0.9`.
+
 Also see the test cases in smartcrop_test.go and cli application in cmd/smartcrop/ for further working examples.
 
 ## Simple CLI application
